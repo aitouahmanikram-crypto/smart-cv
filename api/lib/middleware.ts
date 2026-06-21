@@ -1,5 +1,5 @@
-import { verifyToken } from './auth.js';
-import { getSupabase } from './db.js';
+import { verifyToken } from './auth';
+import { getSupabase } from './db';
 
 // Simplified for brevity, you should implement full logic from server.ts
 export async function getAuthenticatedUser(req: any, res: any) {

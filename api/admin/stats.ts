@@ -1,6 +1,6 @@
-import { getSupabase } from '../../lib/db.js';
-import { runCors } from '../../lib/cors.js';
-import { getAuthenticatedAdmin } from '../../lib/middleware.js';
+import { getSupabase } from '../lib/db';
+import { runCors } from '../lib/cors';
+import { getAuthenticatedAdmin } from '../lib/middleware';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;

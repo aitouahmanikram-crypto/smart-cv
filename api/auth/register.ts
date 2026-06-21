@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
-import { getSupabase } from '../lib/db.js';
-import { generateToken } from '../lib/auth.js';
-import { runCors } from '../lib/cors.js';
-import { serializeUserBio } from '../lib/utils.js';
+import { getSupabase } from '../lib/db';
+import { generateToken } from '../lib/auth';
+import { runCors } from '../lib/cors';
+import { serializeUserBio } from '../lib/utils';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
