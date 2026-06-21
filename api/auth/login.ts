@@ -8,24 +8,24 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
     const { email, password } = body;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+    if (!email || !password) return res.status(400).json({ success: false, error: "Email and password are required" });
 
     const supabase = getSupabase();
     
     const { data: user, error } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
     if (error || !user || !bcrypt.compareSync(password, user.passwordHash)) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
     const token = generateToken(user.id, user.tenantId);
     
-    res.status(200).json({ token, user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId } });
+    res.status(200).json({ success: true, data: { token, user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId } } });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 }

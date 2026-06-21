@@ -13,11 +13,11 @@ export default async function handler(req: any, res: any) {
     const supabase = getSupabase();
     const { data: fullUser, error } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle();
     
-    if (error || !fullUser) return res.status(404).json({ error: "User profile not found" });
+    if (error || !fullUser) return res.status(404).json({ success: false, error: "User profile not found" });
 
     const userWithVirtuals = extendUserWithVirtualFields(fullUser);
-    res.json(userWithVirtuals);
+    res.status(200).json({ success: true, data: userWithVirtuals });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 }

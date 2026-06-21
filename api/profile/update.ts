@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
     const supabase = getSupabase();
     const { data: rawUser, error: uErr } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle();
     
-    if (uErr || !rawUser) return res.status(404).json({ error: "User profile not found" });
+    if (uErr || !rawUser) return res.status(404).json({ success: false, error: "User profile not found" });
 
     const userWithR = extendUserWithVirtualFields(rawUser);
 
@@ -29,8 +29,8 @@ export default async function handler(req: any, res: any) {
     const { error } = await supabase.from('users').update(updatePayload).eq('id', user.id);
     if (error) throw error;
     
-    res.status(200).json({ success: true, user: { name, title, bio } });
+    res.status(200).json({ success: true, data: { name, title, bio } });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 }

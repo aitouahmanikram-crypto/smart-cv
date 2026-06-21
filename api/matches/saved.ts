@@ -28,8 +28,8 @@ export default async function handler(req: any, res: any) {
       .in('id', matchIds);
 
     if (matchErr) throw matchErr;
-    res.status(200).json(matches || []);
+    res.status(200).json({ success: true, data: matches || [] });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 }
