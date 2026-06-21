@@ -39,9 +39,12 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
 
         const statsData = await statsRes.json();
         const savedData = await savedRes.json();
+        
+        if (!statsData.success) throw new Error(statsData.error || "Failed to load dashboard data");
+        if (!savedData.success) throw new Error(savedData.error || "Failed to load saved jobs");
 
-        setStats(statsData);
-        setSavedJobs(savedData || []);
+        setStats(statsData.data);
+        setSavedJobs(savedData.data || []);
       } catch (err: any) {
         setError(err.message);
       } finally {
