@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { verifyToken } from './auth';
-import { supabase } from './db';
+import { verifyToken } from './auth.js';
+import { supabase } from './db.js';
 
 // Simplified for brevity, you should implement full logic from server.ts
 export async function getAuthenticatedUser(req: VercelRequest, res: VercelResponse) {

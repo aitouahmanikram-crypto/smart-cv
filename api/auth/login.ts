@@ -1,8 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { supabase } from '../lib/db';
-import { generateToken } from '../lib/auth';
-import { runCors } from '../lib/cors';
+import { supabase } from '../lib/db.js';
+import { generateToken } from '../lib/auth.js';
+import { runCors } from '../lib/cors.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!runCors(req, res)) return;
