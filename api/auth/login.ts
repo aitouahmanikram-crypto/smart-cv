@@ -2,30 +2,37 @@ import bcrypt from 'bcryptjs';
 import { getSupabase } from '../lib/db';
 import { generateToken } from '../lib/auth';
 import { runCors } from '../lib/cors';
+import { sendSuccess, sendError } from '../lib/api-utils';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
 
   try {
     if (req.method !== 'POST') {
-      return res.status(405).json({ success: false, error: 'Method not allowed' });
+      return sendError(res, "Method not allowed", 405);
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    let body;
+    try {
+        body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    } catch (e) {
+        return sendError(res, "Invalid JSON payload", 400);
+    }
+
     const { email, password } = body;
-    if (!email || !password) return res.status(400).json({ success: false, error: "Email and password are required" });
+    if (!email || !password) return sendError(res, "Email and password are required", 400);
 
     const supabase = getSupabase();
     
     const { data: user, error } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
     if (error || !user || !bcrypt.compareSync(password, user.passwordHash)) {
-      return res.status(401).json({ success: false, error: "Invalid email or password" });
+      return sendError(res, "Invalid email or password", 401);
     }
 
     const token = generateToken(user.id, user.tenantId);
     
-    res.status(200).json({ success: true, data: { token, user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId } } });
+    return sendSuccess(res, { token, user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    return sendError(res, err);
   }
 }

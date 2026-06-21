@@ -13,7 +13,12 @@ export default async function handler(req: any, res: any) {
       return sendError(res, "Method not allowed", 405);
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    let body;
+    try {
+        body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    } catch (e) {
+        return sendError(res, "Invalid JSON payload", 400);
+    }
     const { email, password, name } = body;
     if (!email || !password || !name) return sendError(res, "Name, email, and password are required fields", 400);
 

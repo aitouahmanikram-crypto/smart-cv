@@ -1,6 +1,7 @@
 import { getSupabase } from '../lib/db';
 import { runCors } from '../lib/cors';
 import { getAuthenticatedAdmin } from '../lib/middleware';
+import { sendSuccess, sendError } from '../lib/api-utils';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
@@ -26,13 +27,13 @@ export default async function handler(req: any, res: any) {
           (j.description && j.description.toLowerCase().includes(searchLower))
         );
       }
-      return res.status(200).json({ success: true, data: filtered });
+      return sendSuccess(res, filtered);
     }
 
     if (req.method === 'POST') {
       const { title, company, location, category, type, description, requirements, salary } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       if (!title || !company || !description) {
-        return res.status(400).json({ success: false, error: "Title, company, and description are required fields" });
+        return sendError(res, "Title, company, and description are required fields", 400);
       }
       const newJob = {
         id: `job-${Date.now()}`,
@@ -49,11 +50,11 @@ export default async function handler(req: any, res: any) {
 
       const { error } = await supabase.from('jobs').insert([newJob]);
       if (error) throw error;
-      return res.status(201).json({ success: true, data: newJob });
+      return sendSuccess(res, newJob, 201);
     }
 
-    return res.status(405).json({ success: false, error: "Method not allowed" });
+    return sendError(res, "Method not allowed", 405);
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    return sendError(res, err);
   }
 }
