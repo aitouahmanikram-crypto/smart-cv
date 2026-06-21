@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { supabase } from '../lib/db.js';
+import { getSupabase } from '../lib/db.js';
 import { generateToken } from '../lib/auth.js';
 import { runCors } from '../lib/cors.js';
 import { serializeUserBio } from '../lib/utils.js';
@@ -7,14 +7,17 @@ import { serializeUserBio } from '../lib/utils.js';
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { email, password, name } = req.body;
-  if (!email || !password || !name) return res.status(400).json({ error: "Name, email, and password are required fields" });
-
   try {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    const { email, password, name } = body;
+    if (!email || !password || !name) return res.status(400).json({ error: "Name, email, and password are required fields" });
+
+    const supabase = getSupabase();
+
     const { data: existing } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).maybeSingle();
     if (existing) return res.status(400).json({ error: "An account with this email address already exists" });
 

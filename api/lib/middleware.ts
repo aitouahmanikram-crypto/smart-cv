@@ -1,5 +1,5 @@
 import { verifyToken } from './auth.js';
-import { supabase } from './db.js';
+import { getSupabase } from './db.js';
 
 // Simplified for brevity, you should implement full logic from server.ts
 export async function getAuthenticatedUser(req: any, res: any) {
@@ -15,6 +15,7 @@ export async function getAuthenticatedUser(req: any, res: any) {
     return null;
   }
   
+  const supabase = getSupabase();
   const { data: rawUser } = await supabase.from('users').select('*').eq('id', decoded.userId).maybeSingle();
   if (!rawUser) {
     res.status(401).json({ error: "User session is invalid" });
