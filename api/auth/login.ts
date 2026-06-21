@@ -1,4 +1,5 @@
-export default async function handler(req: any, res: any) {import bcrypt from 'bcryptjs';
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import bcrypt from 'bcryptjs';
 import { supabase } from '../lib/db.js';
 import { generateToken } from '../lib/auth.js';
 import { runCors } from '../lib/cors.js';
