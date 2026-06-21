@@ -24,3 +24,14 @@ export async function getAuthenticatedUser(req: any, res: any) {
   
   return rawUser; // Minimal version
 }
+
+export async function getAuthenticatedAdmin(req: any, res: any) {
+  const user = await getAuthenticatedUser(req, res);
+  if (!user) return null;
+
+  if (user.role !== 'super_admin') {
+    res.status(403).json({ error: "Unauthorized. Super Admin access only." });
+    return null;
+  }
+  return user;
+}
