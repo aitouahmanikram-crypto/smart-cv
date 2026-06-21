@@ -1,11 +1,10 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import { supabase } from '../lib/db.js';
 import { generateToken } from '../lib/auth.js';
 import { runCors } from '../lib/cors.js';
 import { serializeUserBio } from '../lib/utils.js';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
 
   if (req.method !== 'POST') {

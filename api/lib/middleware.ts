@@ -1,9 +1,8 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyToken } from './auth.js';
 import { supabase } from './db.js';
 
 // Simplified for brevity, you should implement full logic from server.ts
-export async function getAuthenticatedUser(req: VercelRequest, res: VercelResponse) {
+export async function getAuthenticatedUser(req: any, res: any) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ error: "Missing or invalid authorization token" });
