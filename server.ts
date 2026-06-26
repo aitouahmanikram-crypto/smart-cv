@@ -253,12 +253,105 @@ async function logActivity(userId: string, tenantId: string, type: 'upload' | 'a
   }
 }
 
-
 // --- API ROUTES ---
 
 // Health & Metadata check
 app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString(), platform: "SmartCV AI" });
+});
+
+// Authentication Routes
+app.post("/api/auth/register", async (req, res) => {
+  const { email, password, name } = req.body;
+  if (!email || !password || !name) return res.status(400).json({ error: "Name, email, and password are required fields" });
+
+  try {
+    const { data: existing } = await supabase.from('users').select('id').eq('email', email.toLowerCase()).maybeSingle();
+    if (existing) return res.status(400).json({ error: "An account with this email address already exists" });
+
+    const userId = `user-${Date.now()}`;
+    const tenantId = `tenant-${Math.random().toString(36).substring(2, 7)}`;
+    const passwordHash = bcrypt.hashSync(password, 10);
+    const virtualBio = serializeUserBio("user", "active", "");
+
+    const { error } = await supabase.from('users').insert([{
+      id: userId,
+      email: email.toLowerCase(),
+      passwordHash: passwordHash,
+      name,
+      tenantId: tenantId,
+      title: "",
+      bio: virtualBio,
+      createdAt: new Date().toISOString()
+    }]);
+
+    if (error) throw error;
+
+    const token = generateToken(userId, tenantId);
+    logActivity(userId, tenantId, "upload", `Account registered for ${name}`);
+
+    res.status(201).json({ token, user: { id: userId, email, name, tenantId: tenantId, role: "user", status: "active" } });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+  try {
+    const { data: user, error } = await supabase.from('users').select('*').eq('email', email.toLowerCase()).maybeSingle();
+    if (!user || error) return res.status(401).json({ error: "Invalid email or password" });
+
+    const isValid = bcrypt.compareSync(password, user.passwordHash);
+    if (!isValid) return res.status(401).json({ error: "Invalid credentials" });
+
+    const userWithR = extendUserWithVirtualFields(user);
+    if (userWithR.status === "suspended") {
+      return res.status(403).json({ error: "Your account has been suspended. Please contact the administrator." });
+    }
+
+    const token = generateToken(user.id, user.tenantId);
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, title: user.title, bio: userWithR.bio, role: userWithR.role, status: userWithR.status } });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/auth/me", authenticate, async (req: any, res) => {
+  try {
+    const { data: user, error } = await supabase.from('users').select('*').eq('id', req.user.userId).maybeSingle();
+    if (!user || error) return res.status(404).json({ error: "User profile not found" });
+    const userWithR = extendUserWithVirtualFields(user);
+    res.json({ id: user.id, email: user.email, name: user.name, tenantId: user.tenantId, title: user.title || "", bio: userWithR.bio || "", role: userWithR.role, status: userWithR.status, createdAt: user.createdAt });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/profile/update", authenticate, async (req: any, res) => {
+  const { name, title, bio } = req.body;
+  try {
+    const { data: rawUser } = await supabase.from('users').select('*').eq('id', req.user.userId).maybeSingle();
+    if (!rawUser) return res.status(404).json({ error: "User not found" });
+    
+    const userWithR = extendUserWithVirtualFields(rawUser);
+
+    const updatePayload: any = {};
+    if (name) updatePayload.name = name;
+    if (title !== undefined) updatePayload.title = title;
+    
+    // Maintain role & status when updating bios
+    updatePayload.bio = serializeUserBio(userWithR.role, userWithR.status, bio !== undefined ? bio : userWithR.bio);
+
+    const { error } = await supabase.from('users').update(updatePayload).eq('id', req.user.userId);
+    if (error) throw error;
+    res.json({ success: true, user: { name, title, bio } });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/jobs", async (req, res) => {
