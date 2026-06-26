@@ -1,6 +1,6 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { getSupabase } from '../server/lib/db';
 import { analyzeJobMatch } from '../src/services/aiService';
 
 export default async function handler(req: any, res: any) {

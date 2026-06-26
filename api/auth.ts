@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
-import { getSupabase } from './lib/db';
-import { generateToken } from './lib/auth';
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { extendUserWithVirtualFields, serializeUserBio } from './lib/utils';
+import { getSupabase } from '../server/lib/db';
+import { generateToken } from '../server/lib/auth';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { extendUserWithVirtualFields, serializeUserBio } from '../server/lib/utils';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
