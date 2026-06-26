@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Target, Search, Building, MapPin, DollarSign, ExternalLink, Zap, CheckCircle, AlertTriangle, Star } from "lucide-react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { apiFetch } from "../../lib/apiClient";
+import { Target, Search, Building, MapPin, DollarSign, ExternalLink, Zap, CheckCircle, AlertTriangle } from "lucide-react";
+import { motion, useMotionValue, useTransform, animate } from "motion/react";
 
 function AnimatedScore({ score, className }: { score: number, className?: string }) {
   const count = useMotionValue(0);
@@ -19,7 +18,6 @@ export default function JobMatching({ token }: { token: string }) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [cvs, setCvs] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
-  const [savedMatchIds, setSavedMatchIds] = useState<Record<string, boolean>>({});
   
   const [loading, setLoading] = useState(true);
   const [matchingStatus, setMatchingStatus] = useState<Record<string, boolean>>({});
@@ -29,24 +27,21 @@ export default function JobMatching({ token }: { token: string }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [jobsData, cvData, matchesData, savedData] = await Promise.all([
-          apiFetch("/api/jobs", { headers: { "Authorization": `Bearer ${token}` } }),
-          apiFetch("/api/cvs", { headers: { "Authorization": `Bearer ${token}` } }),
-          apiFetch("/api/matches", { headers: { "Authorization": `Bearer ${token}` } }),
-          apiFetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
+        const [jobsReq, cvReq, matchesReq] = await Promise.all([
+          fetch("/api/jobs", { headers: { "Authorization": `Bearer ${token}` } }),
+          fetch("/api/cvs", { headers: { "Authorization": `Bearer ${token}` } }),
+          fetch("/api/matches", { headers: { "Authorization": `Bearer ${token}` } })
         ]);
+        
+        if (!jobsReq.ok || !cvReq.ok || !matchesReq.ok) throw new Error("Failed to load matching engine data");
+        
+        const jobsData = await jobsReq.json();
+        const cvData = await cvReq.json();
+        const matchesData = await matchesReq.json();
         
         setJobs(jobsData);
         setCvs(cvData);
         setMatches(matchesData);
-        
-        const savedMap: Record<string, boolean> = {};
-        if (Array.isArray(savedData)) {
-          savedData.forEach((m: any) => {
-            savedMap[m.id] = true;
-          });
-        }
-        setSavedMatchIds(savedMap);
         
         if (cvData.length > 0) {
           setSelectedCv(cvData[0].id);
@@ -60,24 +55,6 @@ export default function JobMatching({ token }: { token: string }) {
     fetchData();
   }, [token]);
 
-  const toggleBookmark = async (matchId: string) => {
-    const isCurrentlySaved = savedMatchIds[matchId];
-    try {
-      await apiFetch(`/api/matches/save/${matchId}`, {
-        method: isCurrentlySaved ? "DELETE" : "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-      setSavedMatchIds(prev => ({
-        ...prev,
-        [matchId]: !isCurrentlySaved
-      }));
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
   const handleMatch = async (jobId: string) => {
     if (!selectedCv) {
       setError("Please select a CV first to run diagnostics.");
@@ -88,7 +65,7 @@ export default function JobMatching({ token }: { token: string }) {
     setError("");
 
     try {
-      const data = await apiFetch("/api/matches/analyze", {
+      const res = await fetch("/api/matches/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -96,6 +73,9 @@ export default function JobMatching({ token }: { token: string }) {
         },
         body: JSON.stringify({ cvId: selectedCv, jobId })
       });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || "Match analysis failed");
       
       setMatches([data, ...matches.filter(m => !(m.cvId === selectedCv && m.jobId === jobId))]);
     } catch (err: any) {
@@ -128,7 +108,7 @@ export default function JobMatching({ token }: { token: string }) {
     setError("");
 
     try {
-      const data = await apiFetch("/api/matches/custom", {
+      const res = await fetch("/api/matches/custom", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,6 +119,9 @@ export default function JobMatching({ token }: { token: string }) {
           ...customForm
         })
       });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || "Match analysis failed");
       
       setMatches([data, ...matches]);
       setJobs([data.customJob, ...jobs]);
@@ -255,7 +238,7 @@ export default function JobMatching({ token }: { token: string }) {
            const isAnalyzing = matchingStatus[job.id];
            
            return (
-             <div key={job.id} className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm flex flex-col justify-between group relative">
+             <div key={job.id} className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 backdrop-blur-sm flex flex-col justify-between group">
                <div>
                  <div className="flex justify-between items-start mb-4">
                    <div>
@@ -265,28 +248,12 @@ export default function JobMatching({ token }: { token: string }) {
                      </p>
                    </div>
                    
-                   <div className="flex items-center gap-2">
-                     {existingMatch && (
-                       <button
-                         onClick={() => toggleBookmark(existingMatch.id)}
-                         className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                           savedMatchIds[existingMatch.id] 
-                             ? "bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30" 
-                             : "bg-slate-950 border-slate-800 text-slate-500 hover:text-white"
-                         }`}
-                         title={savedMatchIds[existingMatch.id] ? "Remove star" : "Star job match"}
-                       >
-                         <Star className={`h-4 w-4 ${savedMatchIds[existingMatch.id] ? "fill-amber-400" : ""}`} />
-                       </button>
-                     )}
-
-                     {existingMatch && (
-                       <div className={`px-3 py-1.5 rounded-xl border flex flex-col items-center justify-center shrink-0 ${existingMatch.matchScore >= 80 ? 'bg-emerald-500/10 border-emerald-500/20' : existingMatch.matchScore >= 60 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
-                          <AnimatedScore score={existingMatch.matchScore} className={`text-xl font-bold ${existingMatch.matchScore >= 80 ? 'text-emerald-400' : existingMatch.matchScore >= 60 ? 'text-amber-400' : 'text-rose-400'}`} />
-                          <span className="text-[10px] uppercase font-mono text-slate-500 font-bold tracking-wider">Match</span>
-                       </div>
-                     )}
-                   </div>
+                   {existingMatch && (
+                     <div className={`px-3 py-1.5 rounded-xl border flex flex-col items-center justify-center shrink-0 ${existingMatch.matchScore >= 80 ? 'bg-emerald-500/10 border-emerald-500/20' : existingMatch.matchScore >= 60 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+                        <AnimatedScore score={existingMatch.matchScore} className={`text-xl font-bold ${existingMatch.matchScore >= 80 ? 'text-emerald-400' : existingMatch.matchScore >= 60 ? 'text-amber-400' : 'text-rose-400'}`} />
+                        <span className="text-[10px] uppercase font-mono text-slate-500 font-bold tracking-wider">Match</span>
+                     </div>
+                   )}
                  </div>
                  
                  <div className="flex flex-wrap gap-3 mb-4">

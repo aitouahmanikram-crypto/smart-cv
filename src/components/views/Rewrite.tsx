@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { PenTool, CheckCircle, Copy, Loader2, Sparkles, RefreshCcw, Download } from "lucide-react";
 import jsPDF from "jspdf";
-import { apiFetch } from "../../lib/apiClient";
 
 export default function Rewrite({ token }: { token: string }) {
   const [form, setForm] = useState({
@@ -27,7 +26,7 @@ export default function Rewrite({ token }: { token: string }) {
     setCopied(false);
 
     try {
-      const data = await apiFetch("/api/cvs/rewrite", {
+      const res = await fetch("/api/cvs/rewrite", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -35,6 +34,8 @@ export default function Rewrite({ token }: { token: string }) {
         },
         body: JSON.stringify(form)
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
       
       setResult(data.result);
     } catch (err: any) {

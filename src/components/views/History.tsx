@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FolderClock, FileText, Zap, ChevronRight, Activity, Trash2, ArrowRight, Download } from "lucide-react";
-import jsPDF from "jspdf";
-import { apiFetch } from "../../lib/apiClient";
+import { FolderClock, FileText, Zap, ChevronRight, Activity, Trash2, ArrowRight } from "lucide-react";
 
 export default function History({ token }: { token: string }) {
   const [history, setHistory] = useState<any>({ analyses: [], coverLetters: [], matches: [], interviewQuestions: [] });
@@ -14,10 +12,12 @@ export default function History({ token }: { token: string }) {
 
   const fetchHistory = async () => {
     try {
-      const data = await apiFetch("/api/history", {
+      const res = await fetch("/api/history", {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      setHistory(data);
+      if (res.ok) {
+        setHistory(await res.json());
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -28,7 +28,7 @@ export default function History({ token }: { token: string }) {
   const deleteItem = async (type: string, id: string) => {
     if(!confirm("Delete this record permanently?")) return;
     try {
-      await apiFetch(`/api/history/${type}/${id}`, {
+      await fetch(`/api/history/${type}/${id}`, {
         method: 'DELETE',
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -36,153 +36,6 @@ export default function History({ token }: { token: string }) {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const downloadAnalysisPDF = (selectedCv: any) => {
-    if (!selectedCv) return;
-    const doc = new jsPDF();
-    const margin = 20;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const textAreaWidth = pageWidth - margin * 2;
-
-    // Header styling
-    doc.setFillColor(30, 41, 59); // slate-800
-    doc.rect(0, 0, pageWidth, 40, "F");
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("CV Analysis Report", margin, 25);
-    
-    // Sub-header details
-    doc.setTextColor(51, 65, 85); // slate-700
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(`Candidate: ${selectedCv.parsedDetails?.name || "Unknown"}`, margin, 55);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(`File: ${selectedCv.fileName}`, margin, 63);
-    doc.text(`Date Evaluated: ${new Date(selectedCv.updatedAt).toLocaleDateString()}`, margin, 71);
-    
-    // Line separator
-    doc.setDrawColor(226, 232, 240); // slate-200
-    doc.line(margin, 78, pageWidth - margin, 78);
-
-    // Overall Score
-    doc.setTextColor(15, 23, 42); // slate-900
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text(`Overall Strength Score: ${selectedCv.score || 0}/100`, margin, 90);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    const summaryLines = doc.splitTextToSize(String(selectedCv.summary || "No summary available"), textAreaWidth);
-    doc.text(summaryLines, margin, 100);
-    
-    let currentY = 100 + (summaryLines.length * 6) + 10;
-    
-    const writeSection = (title: string, items: any[], bulletColor = [79, 70, 229]) => {
-      if (!items || !Array.isArray(items) || items.length === 0) return;
-      if (currentY > doc.internal.pageSize.getHeight() - 40) {
-        doc.addPage();
-        currentY = margin;
-      }
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(15, 23, 42);
-      doc.text(title, margin, currentY);
-      currentY += 8;
-      
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(51, 65, 85);
-      
-      items.forEach(item => {
-        if (currentY > doc.internal.pageSize.getHeight() - 20) {
-          doc.addPage();
-          currentY = margin;
-        }
-        
-        doc.setFillColor(bulletColor[0], bulletColor[1], bulletColor[2]);
-        doc.circle(margin + 2, currentY - 1, 1.5, "F");
-        
-        const textLines = doc.splitTextToSize(String(item), textAreaWidth - 8);
-        doc.text(textLines, margin + 8, currentY);
-        currentY += textLines.length * 6 + 4;
-      });
-      currentY += 4;
-    };
-    
-    writeSection("Core Strengths", selectedCv.strengths || [], [16, 185, 129]); // emerald
-    writeSection("Key Weaknesses", selectedCv.weaknesses || [], [244, 63, 94]); // rose
-    writeSection("Matched Skills", selectedCv.skillsMatched || [], [59, 130, 246]); // blue
-    writeSection("Missing Standards", selectedCv.skillsMissing || [], [245, 158, 11]); // amber
-    writeSection("ATS Optimizations", selectedCv.atsOptimizations || [], [168, 85, 247]); // purple
-    writeSection("Recommendations", selectedCv.recommendations || selectedCv.suggestions || [], [99, 102, 241]); // indigo
-
-    // Footer
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text(`Generated by AI CV Coach • ${new Date().getFullYear()}`, margin, pageHeight - 15);
-
-    doc.save(`CV_Analysis_${selectedCv.parsedDetails?.name?.replace(/\s+/g, '_') || 'Report'}.pdf`);
-  };
-
-  const downloadCoverLetterPDF = (letter: any) => {
-    const doc = new jsPDF();
-    const margin = 20;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const textAreaWidth = pageWidth - margin * 2;
-
-    // Header styling
-    doc.setFillColor(30, 41, 59); // slate-800
-    doc.rect(0, 0, pageWidth, 40, "F");
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("Cover Letter", margin, 25);
-    
-    // Sub-header details
-    doc.setTextColor(51, 65, 85); // slate-700
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(`Role: ${letter.jobTitle}`, margin, 55);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(`Company: ${letter.companyName}`, margin, 63);
-    doc.text(`Date: ${new Date(letter.createdAt).toLocaleDateString()}`, margin, 71);
-    
-    // Line separator
-    doc.setDrawColor(226, 232, 240); // slate-200
-    doc.line(margin, 78, pageWidth - margin, 78);
-
-    // Letter Content
-    doc.setTextColor(15, 23, 42); // slate-900
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    
-    const splitText = doc.splitTextToSize(String(letter.generatedText || ""), textAreaWidth);
-    let currentY = 90;
-    
-    // Simple pagination handling if cover letter is too long
-    for (let i = 0; i < splitText.length; i++) {
-      if (currentY > doc.internal.pageSize.getHeight() - 20) {
-        doc.addPage();
-        currentY = margin;
-      }
-      doc.text(splitText[i], margin, currentY);
-      currentY += 6;
-    }
-    
-    // Footer
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text(`Generated by AI CV Coach • ${new Date().getFullYear()}`, margin, pageHeight - 15);
-
-    doc.save(`${letter.companyName.replace(/\s+/g, '_')}_Cover_Letter.pdf`);
   };
 
   if (loading) {
@@ -232,10 +85,7 @@ export default function History({ token }: { token: string }) {
                  <div key={item.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col group hover:border-slate-700 transition">
                     <div className="flex justify-between items-start mb-4">
                        <span className="px-2 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] uppercase font-bold tracking-wider rounded border border-indigo-500/20">{item.score || 0}/100</span>
-                       <div className="flex items-center gap-2">
-                          <button onClick={() => downloadAnalysisPDF(item)} className="text-slate-400 hover:text-white transition cursor-pointer" title="Export PDF"><Download className="h-4 w-4" /></button>
-                          <button onClick={() => deleteItem('analysis', item.id)} className="text-slate-500 hover:text-rose-400 transition cursor-pointer" title="Delete"><Trash2 className="h-4 w-4" /></button>
-                       </div>
+                       <button onClick={() => deleteItem('analysis', item.id)} className="text-slate-500 hover:text-rose-400 transition"><Trash2 className="h-4 w-4" /></button>
                     </div>
                     <h3 className="text-white font-bold truncate">{item.fileName}</h3>
                     <p className="text-slate-400 text-xs mt-1 mb-4 flex-grow">{new Date(item.updatedAt).toLocaleDateString()}</p>
@@ -251,10 +101,7 @@ export default function History({ token }: { token: string }) {
                  <div key={item.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col group hover:border-slate-700 transition">
                     <div className="flex justify-between items-start mb-4">
                        <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] uppercase font-bold tracking-wider rounded border border-emerald-500/20">Letter</span>
-                       <div className="flex items-center gap-2">
-                          <button onClick={() => downloadCoverLetterPDF(item)} className="text-slate-400 hover:text-white transition cursor-pointer" title="Export PDF"><Download className="h-4 w-4" /></button>
-                          <button onClick={() => deleteItem('coverLetter', item.id)} className="text-slate-500 hover:text-rose-400 transition cursor-pointer" title="Delete"><Trash2 className="h-4 w-4" /></button>
-                       </div>
+                       <button onClick={() => deleteItem('coverLetter', item.id)} className="text-slate-500 hover:text-rose-400 transition"><Trash2 className="h-4 w-4" /></button>
                     </div>
                     <h3 className="text-white font-bold truncate">{item.jobTitle}</h3>
                     <p className="text-slate-400 text-xs mt-1 mb-4 flex-grow">at {item.companyName} • {new Date(item.createdAt).toLocaleDateString()}</p>

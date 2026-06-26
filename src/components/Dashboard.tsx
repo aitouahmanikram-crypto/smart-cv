@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { LayoutDashboard, FileText, Zap, BookOpen, Target, User, LogOut, Menu, X, Edit, Shield } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { LayoutDashboard, FileText, Zap, BookOpen, Target, User, LogOut, Menu, X, Edit } from "lucide-react";
 import Overview from "./views/Overview";
 import UploadCV from "./views/UploadCV";
 import CVAnalysis from "./views/CVAnalysis";
@@ -9,9 +8,7 @@ import JobMatching from "./views/JobMatching";
 import Rewrite from "./views/Rewrite";
 import Profile from "./views/Profile";
 import History from "./views/History";
-import AdminPanel from "./views/AdminPanel";
 import { FolderClock } from "lucide-react";
-import LanguageSwitcher from "./LanguageSwitcher";
 
 interface DashboardProps {
   token: string;
@@ -19,24 +16,22 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-export type ViewType = 'overview' | 'upload' | 'analysis' | 'rewrite' | 'letters' | 'matching' | 'history' | 'profile' | 'admin';
+export type ViewType = 'overview' | 'upload' | 'analysis' | 'rewrite' | 'letters' | 'matching' | 'history' | 'profile';
 
 export default function Dashboard({ token, user, onLogout }: DashboardProps) {
   const [activeView, setActiveView] = useState<ViewType>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { t } = useTranslation();
 
-  const navItems: { id: ViewType; label: string; icon: any }[] = [
-    { id: 'overview', label: t('Dashboard'), icon: LayoutDashboard },
-    { id: 'upload', label: t('Upload CV'), icon: FileText },
-    { id: 'analysis', label: t('Analysis'), icon: Zap },
+  const navItems = [
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'upload', label: 'Upload CV', icon: FileText },
+    { id: 'analysis', label: 'CV Analysis', icon: Zap },
     { id: 'rewrite', label: 'AI Rewriter', icon: Edit },
-    { id: 'letters', label: t('Cover Letter'), icon: BookOpen },
-    { id: 'matching', label: t('Job Matching'), icon: Target },
+    { id: 'letters', label: 'Cover Letters', icon: BookOpen },
+    { id: 'matching', label: 'Job Matching', icon: Target },
     { id: 'history', label: 'History & Assets', icon: FolderClock },
-    { id: 'profile', label: t('Profile'), icon: User },
-    ...(user?.role === "super_admin" ? [{ id: 'admin' as ViewType, label: t('Admin Panel'), icon: Shield }] : [])
-  ];
+    { id: 'profile', label: 'Profile Settings', icon: User },
+  ] as const;
 
   const renderView = () => {
     switch (activeView) {
@@ -48,7 +43,6 @@ export default function Dashboard({ token, user, onLogout }: DashboardProps) {
       case 'matching': return <JobMatching token={token} />;
       case 'history': return <History token={token} />;
       case 'profile': return <Profile token={token} user={user} />;
-      case 'admin': return <AdminPanel token={token} />;
       default: return <Overview token={token} onNavigate={setActiveView} />;
     }
   };
@@ -101,11 +95,6 @@ export default function Dashboard({ token, user, onLogout }: DashboardProps) {
           </div>
 
           <div className="p-4 border-t border-slate-900">
-            <div className="flex items-center justify-between mb-4 px-2">
-              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Language</span>
-              <LanguageSwitcher />
-            </div>
-            
             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-slate-900/50 border border-slate-800 mb-2">
               <div className="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30 text-indigo-300 font-bold text-xs uppercase">
                 {user?.name?.charAt(0) || 'U'}
