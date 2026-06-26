@@ -1,5 +1,5 @@
-import { getSupabase } from '../server/lib/db';
-import { runCors } from '../server/lib/cors';
+import { getSupabase } from './lib/db';
+import { runCors } from './lib/cors';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;

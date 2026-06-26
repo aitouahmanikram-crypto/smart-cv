@@ -1,7 +1,7 @@
-import { runCors } from '../server/lib/cors';
-import { getAuthenticatedUser } from '../server/lib/middleware';
-import { getSupabase } from '../server/lib/db';
-import { logActivity } from '../server/lib/utils';
+import { runCors } from './lib/cors';
+import { getAuthenticatedUser } from './lib/middleware';
+import { getSupabase } from './lib/db';
+import { logActivity } from './lib/utils';
 import { parseCVTextAndGenerateSummary, rewriteCVContent } from '../src/services/aiService';
 import multer from 'multer';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';

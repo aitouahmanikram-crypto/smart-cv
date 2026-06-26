@@ -1,20 +1,18 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
+import { runCors } from '../lib/cors';
+import { getAuthenticatedUser } from '../lib/middleware';
+import { getSupabase } from '../lib/db';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
 
-  const { action } = req.query;
+  const user = await getAuthenticatedUser(req, res);
+  if (!user) return;
+
+  const supabase = getSupabase();
+  if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
 
   try {
-    const user = await getAuthenticatedUser(req, res);
-    if (!user) return;
-
-    const supabase = getSupabase();
-    if (!supabase) return res.status(500).json({ success: false, error: "Supabase environment variables are missing" });
-
-    if (action === 'stats') {
+    if (req.method === 'GET') {
       const [
         { count: cvCount },
         { count: matchCount },
@@ -38,23 +36,20 @@ export default async function handler(req: any, res: any) {
         : 0;
 
       return res.status(200).json({
-        success: true,
-        data: {
-          cvsCount: cvCount || 0,
-          lettersCount: letterCount || 0,
-          matchesCount: matchCount || 0,
-          interviewsCount: 0, 
-          averageScore: averageScore || 75,
-          cvs: cvs || [],
-          letters: letters || [],
-          matches: matches || [],
-          recentActivity: activities || []
-        }
+        cvsCount: cvCount || 0,
+        lettersCount: letterCount || 0,
+        matchesCount: matchCount || 0,
+        interviewsCount: 0, // Placeholder
+        averageScore: averageScore || 75,
+        cvs: cvs || [],
+        letters: letters || [],
+        matches: matches || [],
+        recentActivity: activities || []
       });
     }
 
-    return res.status(400).json({ success: false, error: "Invalid action" });
+    return res.status(405).json({ error: "Method not allowed" });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: err.message });
   }
 }

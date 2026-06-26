@@ -1,6 +1,6 @@
-import { getSupabase } from '../server/lib/db';
-import { runCors } from '../server/lib/cors';
-import { getAuthenticatedAdmin } from '../server/lib/middleware';
+import { getSupabase } from './lib/db';
+import { runCors } from './lib/cors';
+import { getAuthenticatedAdmin } from './lib/middleware';
 import fs from 'fs';
 
 export default async function handler(req: any, res: any) {
