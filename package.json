@@ -9,7 +9,6 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "clean": "rm -rf dist server.js",
-    "count:api": "find api -type f \\( -name '*.ts' -o -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \\) | sort",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
