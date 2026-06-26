@@ -1,25 +1,22 @@
-import { runCors } from '../lib/cors';
-import { getAuthenticatedUser } from '../lib/middleware';
-import { getSupabase } from '../lib/db';
-import { logActivity } from '../lib/utils';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { runCors } from '../_lib/cors';
+import { getAuthenticatedUser } from '../_lib/middleware';
+import { getSupabase } from '../_lib/db';
+import { logActivity } from '../_lib/utils';
 import { parseCVTextAndGenerateSummary } from '../../src/services/aiService';
 import multer from 'multer';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import mammoth from 'mammoth';
 
-// Configure multer for serverless memory storage
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit for Vercel
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-// Helper to run multer in serverless context
 const runMiddleware = (req: any, res: any, fn: any) => {
     return new Promise((resolve, reject) => {
         fn(req, res, (result: any) => {
-            if (result instanceof Error) {
-                return reject(result);
-            }
+            if (result instanceof Error) return reject(result);
             return resolve(result);
         });
     });
@@ -27,27 +24,40 @@ const runMiddleware = (req: any, res: any, fn: any) => {
 
 export const config = {
     api: {
-        bodyParser: false, // Disable built-in body parser for multipart
+        bodyParser: false,
     },
 };
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        return res.status(200).json({ success: true });
+    }
+
     if (!runCors(req, res)) return;
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ 
+            success: false, 
+            error: 'Method not allowed', 
+            method: req.method, 
+            route: '/api/cvs/upload', 
+            allowedMethods: ['POST'] 
+        });
+    }
 
     try {
         const user = await getAuthenticatedUser(req, res);
         if (!user) return;
 
-        if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
-
         const supabase = getSupabase();
-        if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
+        if (!supabase) return res.status(500).json({ success: false, error: "Supabase configuration missing" });
 
-        // Parse local file
         await runMiddleware(req, res, upload.single('cvFile'));
-        
         const file = req.file;
-        if (!file) return res.status(400).json({ error: "No file uploaded" });
+        if (!file) return res.status(400).json({ success: false, error: "No file uploaded" });
 
         let textContent = "";
         const fileName = file.originalname;
@@ -63,47 +73,32 @@ export default async function handler(req: any, res: any) {
         }
 
         if (!textContent || textContent.trim().length < 50) {
-            return res.status(400).json({ error: "Could not extract enough text from file. Please ensure it's a valid CV." });
+            return res.status(400).json({ success: false, error: "Could not extract enough text from file." });
         }
 
-        // AI process
         const openaiPayload = await parseCVTextAndGenerateSummary(textContent);
         const score = openaiPayload.score || 72;
         const cvId = `cv-${Date.now()}`;
         const status = score >= 80 ? "VALIDATED" : (score >= 60 ? "ANALYSED" : "REJECTED");
 
         const analyzedCV = {
-            id: cvId, 
-            userId: user.id, 
-            fileName: fileName || "Resume", 
-            status,
-            score,
-            grammarScore: openaiPayload.grammarScore || 70, 
-            impactScore: openaiPayload.impactScore || 65, 
-            skillsScore: openaiPayload.skillsScore || 75,
-            summary: openaiPayload.summary || "Parsed Resume", 
-            suggestions: openaiPayload.recommendations || [],
-            strengths: openaiPayload.strengths || [], 
-            weaknesses: openaiPayload.weaknesses || [], 
-            atsOptimizations: openaiPayload.atsOptimizations || [],
-            grammarImprovements: openaiPayload.grammarImprovements || [], 
-            recommendations: openaiPayload.recommendations || [],
-            skillsMatched: openaiPayload.skillsMatched || [], 
-            skillsMissing: openaiPayload.skillsMissing || [],
-            parsedDetails: {
-                ...(openaiPayload.parsedDetails || {}),
-                keywordMatching: openaiPayload.keywordMatching || 70,
-            }, 
+            id: cvId, userId: user.id, fileName: fileName || "Resume", status, score,
+            grammarScore: openaiPayload.grammarScore || 70, impactScore: openaiPayload.impactScore || 65, skillsScore: openaiPayload.skillsScore || 75,
+            summary: openaiPayload.summary || "Parsed Resume", suggestions: openaiPayload.recommendations || [],
+            strengths: openaiPayload.strengths || [], weaknesses: openaiPayload.weaknesses || [], atsOptimizations: openaiPayload.atsOptimizations || [],
+            grammarImprovements: openaiPayload.grammarImprovements || [], recommendations: openaiPayload.recommendations || [],
+            skillsMatched: openaiPayload.skillsMatched || [], skillsMissing: openaiPayload.skillsMissing || [],
+            parsedDetails: { ...(openaiPayload.parsedDetails || {}), keywordMatching: openaiPayload.keywordMatching || 70 }, 
             updatedAt: new Date().toISOString()
         };
 
         const { error: insertErr } = await supabase.from('cvs').insert([analyzedCV]);
         if (insertErr) throw insertErr;
-
-        await logActivity(user.id, user.tenantId, "analysis", `CV "${fileName}" analyzed with score ${score}%. Status: ${status}.`);
-
-        res.status(200).json(analyzedCV);
+        await logActivity(user.id, user.tenantId, "analysis", `CV "${fileName}" analyzed.`);
+        
+        return res.status(200).json({ success: true, data: analyzedCV });
     } catch (err: any) {
-        res.status(500).json({ error: err.message || "Upload failure" });
+        console.error('[CV Upload Error]:', err);
+        return res.status(500).json({ success: false, error: "Internal server error" });
     }
 }

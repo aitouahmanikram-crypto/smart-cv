@@ -1,66 +1,30 @@
 export async function safeJson(response: Response) {
-  const text = await response.text();
-  if (!text) return {};
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    const text = await response.text();
+    return { error: text || "Expected JSON response but got something else", status: response.status };
+  }
+  
   try {
-    return JSON.parse(text);
-  } catch {
-    return { error: text || "Invalid JSON response" };
+    return await response.json();
+  } catch (err) {
+    return { error: "Failed to parse JSON response", status: response.status };
   }
 }
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
-  // Map old URLs to new grouped URLs
-  let finalUrl = url;
-  if (url.startsWith('/api/auth/login')) finalUrl = '/api/auth?action=login';
-  else if (url.startsWith('/api/auth/register')) finalUrl = '/api/auth?action=register';
-  else if (url.startsWith('/api/auth/me')) finalUrl = '/api/auth?action=me';
-  else if (url.startsWith('/api/auth/logout')) finalUrl = '/api/auth?action=logout';
-  else if (url.startsWith('/api/profile/update')) finalUrl = '/api/profile?action=update';
-  else if (url.startsWith('/api/dashboard/stats')) finalUrl = '/api/dashboard?action=stats';
-  else if (url.startsWith('/api/cvs/upload')) finalUrl = '/api/cvs?action=upload';
-  else if (url.startsWith('/api/cvs/rewrite')) finalUrl = '/api/cvs?action=rewrite';
-  else if (url === '/api/cvs') finalUrl = '/api/cvs?action=list';
-  else if (url.startsWith('/api/cvs/')) {
-    const parts = url.split('/');
-    if (parts.length >= 4) {
-      if (parts[parts.length-1] === 'restore') {
-        finalUrl = `/api/cvs?action=restore&cvId=${parts[3]}&versionId=${parts[5]}`;
-      } else if (parts[parts.length-1] === 'versions') {
-        finalUrl = `/api/cvs?action=versions&cvId=${parts[3]}`;
-      }
-    }
-  }
-  else if (url === '/api/jobs') finalUrl = '/api/jobs?action=list';
-  else if (url.startsWith('/api/jobs/search')) finalUrl = '/api/jobs?action=search';
-  else if (url === '/api/matches') finalUrl = '/api/matches?action=list';
-  else if (url.startsWith('/api/matches/')) {
-    const parts = url.split('/');
-    if (parts.length >= 4) {
-      if (parts[2] === 'save') {
-        finalUrl = `/api/matches?action=save&id=${parts[3]}`;
-      }
-    }
-  }
-  else if (url.startsWith('/api/matches/analyze')) finalUrl = '/api/matches?action=analyze';
-  else if (url.startsWith('/api/matches/custom')) finalUrl = '/api/matches?action=custom';
-  else if (url.startsWith('/api/matches/saved')) finalUrl = '/api/matches?action=saved';
-  else if (url === '/api/history') finalUrl = '/api/history?action=list';
-  else if (url.startsWith('/api/history/')) {
-    const parts = url.split('/'); // /api/history/[type]/[id]
-    if (parts.length >= 5) {
-      finalUrl = `/api/history?action=delete&type=${parts[3]}&id=${parts[4]}`;
-    }
-  }
-  else if (url === '/api/career-advice') finalUrl = '/api/career-advice?action=list';
-  else if (url.startsWith('/api/career-advice/generate')) finalUrl = '/api/career-advice?action=generate';
-  else if (url.startsWith('/api/career-advice/')) {
-    const parts = url.split('/');
-    finalUrl = `/api/career-advice?action=get&cvId=${parts[parts.length-1]}`;
-  }
-  else if (url === '/api/cover-letters') finalUrl = '/api/cover-letters?action=list';
-  else if (url.startsWith('/api/cover-letters/generate')) finalUrl = '/api/cover-letters?action=generate';
-  else if (url.startsWith('/api/settings/language')) finalUrl = '/api/settings?action=language';
-  else if (url.startsWith('/api/admin/stats')) finalUrl = '/api/admin?action=stats';
+  // Mappings to Serverless Functions
+  if (url === '/api/auth/login') finalUrl = '/api/auth/login';
+  else if (url === '/api/auth/register') finalUrl = '/api/auth/register';
+  else if (url === '/api/auth/me') finalUrl = '/api/auth/me';
+  else if (url === '/api/auth/logout') finalUrl = '/api/auth/logout';
+  else if (url === '/api/dashboard/stats') finalUrl = '/api/dashboard/stats';
+  else if (url === '/api/profile/update') finalUrl = '/api/profile/update';
+  else if (url === '/api/cvs/upload') finalUrl = '/api/cvs/upload';
+  else if (url === '/api/cvs') finalUrl = '/api/cvs/index';
+  else if (url === '/api/jobs') finalUrl = '/api/jobs/index';
+  else if (url === '/api/jobs/create') finalUrl = '/api/jobs/create';
+  else if (url === '/api/admin/stats') finalUrl = '/api/admin?action=stats';
   else if (url.startsWith('/api/admin/users')) {
     const parts = url.split('/');
     if (parts.length >= 5) {
@@ -83,6 +47,46 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   }
   else if (url.startsWith('/api/admin/settings')) finalUrl = '/api/admin?action=settings';
   else if (url.startsWith('/api/admin/seed-demo')) finalUrl = '/api/admin?action=seed';
+  
+  // Consolidate others into api/actions.ts
+  else if (url === '/api/matches') finalUrl = '/api/actions?action=list_matches';
+  else if (url.startsWith('/api/matches/analyze')) finalUrl = '/api/actions?action=analyze_match';
+  else if (url.startsWith('/api/matches/custom')) finalUrl = '/api/actions?action=custom_match';
+  else if (url.startsWith('/api/matches/saved')) finalUrl = '/api/actions?action=saved_matches';
+  else if (url.startsWith('/api/matches/')) {
+    const parts = url.split('/');
+    if (parts.length >= 4) {
+      finalUrl = `/api/actions?action=toggle_save_match&id=${parts[3]}`;
+    }
+  }
+  else if (url === '/api/history') finalUrl = '/api/actions?action=list_history';
+  else if (url.startsWith('/api/history/')) {
+    const parts = url.split('/');
+    if (parts.length >= 5) {
+      finalUrl = `/api/actions?action=delete_history_item&type=${parts[3]}&id=${parts[4]}`;
+    }
+  }
+  else if (url === '/api/career-advice') finalUrl = '/api/actions?action=list_career_advice';
+  else if (url.startsWith('/api/career-advice/generate')) finalUrl = '/api/actions?action=generate_career_advice';
+  else if (url.startsWith('/api/career-advice/')) {
+    const parts = url.split('/');
+    finalUrl = `/api/actions?action=get_career_advice&cvId=${parts[parts.length-1]}`;
+  }
+  else if (url === '/api/cover-letters') finalUrl = '/api/actions?action=list_cover_letters';
+  else if (url.startsWith('/api/cover-letters/generate')) finalUrl = '/api/actions?action=generate_cover_letter';
+  else if (url === '/api/settings') finalUrl = '/api/actions?action=get_settings';
+  else if (url.startsWith('/api/settings/language')) finalUrl = '/api/actions?action=update_settings';
+  else if (url.startsWith('/api/cvs/rewrite')) finalUrl = '/api/actions?action=rewrite_cv';
+  else if (url.startsWith('/api/cvs/')) {
+    const parts = url.split('/');
+    if (parts.length >= 4) {
+      if (parts[parts.length-1] === 'restore') {
+        finalUrl = `/api/actions?action=restore_cv_version&cvId=${parts[3]}&versionId=${parts[5]}`;
+      } else if (parts[parts.length-1] === 'versions') {
+        finalUrl = `/api/actions?action=cv_versions&cvId=${parts[3]}`;
+      }
+    }
+  }
 
   console.log(`[apiFetch] Request: ${options.method || 'GET'} ${url} -> ${finalUrl}`, { body: !!options.body });
 

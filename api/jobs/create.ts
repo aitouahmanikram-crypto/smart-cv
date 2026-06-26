@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import bcrypt from 'bcryptjs';
 import { getSupabase } from '../_lib/db';
-import { generateToken } from '../_lib/auth';
 import { runCors } from '../_lib/cors';
+import { getAuthenticatedUser } from '../_lib/middleware';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
@@ -19,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: false, 
       error: 'Method not allowed', 
       method: req.method, 
-      route: '/api/auth/login', 
+      route: '/api/jobs/create', 
       allowedMethods: ['POST'] 
     });
   }
@@ -27,6 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(500).json({ success: false, error: "Supabase configuration missing" });
+
+    // Only admins or specific users can create jobs (check logic)
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
 
     let body = req.body;
     if (typeof body === 'string') {
@@ -37,36 +40,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const { email, password } = body || {};
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: "Email and password are required" });
+    const { title, company, location, category, type, salary, description, requirements } = body || {};
+
+    if (!title || !company) {
+      return res.status(400).json({ success: false, error: "Title and company are required" });
     }
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email.toLowerCase())
+    const jobData = {
+      id: `job-${Date.now()}`,
+      title,
+      company,
+      location: location || "Remote",
+      category: category || "Other",
+      type: type || "Full-Time",
+      salary: salary || "Not specified",
+      description: description || "",
+      requirements: requirements || [],
+      postedAt: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('jobs')
+      .insert([jobData])
+      .select()
       .maybeSingle();
 
-    if (error || !user || !bcrypt.compareSync(password, user.passwordHash)) {
-      return res.status(401).json({ success: false, error: "Invalid email or password" });
-    }
-
-    const token = generateToken(user.id, user.tenantId);
-    return res.status(200).json({ 
-      success: true, 
-      data: { 
-        token, 
-        user: { 
-          id: user.id, 
-          email: user.email, 
-          name: user.name, 
-          tenantId: user.tenantId 
-        } 
-      } 
-    });
+    if (error) throw error;
+    return res.status(201).json({ success: true, data });
   } catch (err: any) {
-    console.error('[Login Error]:', err);
+    console.error('[Job Create Error]:', err);
     return res.status(500).json({ success: false, error: "Internal server error" });
   }
 }

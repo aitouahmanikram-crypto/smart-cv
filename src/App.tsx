@@ -1,16 +1,31 @@
 import React, { useState } from "react";
+import i18n from "./i18n";
 import LandingPage from "./components/LandingPage";
 import Auth from "./components/Auth";
 import Dashboard from "./components/Dashboard";
+import { apiFetch } from "./lib/apiClient";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'register' | 'dashboard'>('landing');
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
 
-  const handleLogin = (jwt: string, userData: any) => {
+  const handleLogin = async (jwt: string, userData: any) => {
     setToken(jwt);
     setUser(userData);
+    
+    // Fetch user language preference
+    try {
+      const data = await apiFetch('/api/settings/language', {
+        headers: { "Authorization": `Bearer ${jwt}` }
+      });
+      if (data && data.language) {
+        i18n.changeLanguage(data.language);
+      }
+    } catch (err) {
+      console.error("Failed to load user language:", err);
+    }
+
     setCurrentView('dashboard');
   };
 

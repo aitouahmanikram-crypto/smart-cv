@@ -1,9 +1,11 @@
-import { getSupabase } from '../server/lib/db';
-import { runCors } from '../server/lib/cors';
-import { getAuthenticatedAdmin } from '../server/lib/middleware';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getSupabase } from '../_lib/db';
+import { runCors } from '../_lib/cors';
+import { getAuthenticatedAdmin } from '../_lib/middleware';
 import fs from 'fs';
+import bcrypt from 'bcryptjs';
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -124,7 +126,7 @@ export default async function handler(req: any, res: any) {
       const { id } = req.query;
       const { password } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       if (!id || !password) return res.status(400).json({ success: false, error: "id and password are required" });
-      const { error } = await supabase.from('users').update({ passwordHash: require('bcryptjs').hashSync(password, 10) }).eq('id', id);
+      const { error } = await supabase.from('users').update({ passwordHash: bcrypt.hashSync(password, 10) }).eq('id', id);
       if (error) throw error;
       return res.status(200).json({ success: true });
     }
