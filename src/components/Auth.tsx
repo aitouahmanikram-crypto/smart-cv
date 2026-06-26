@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Sparkles, ArrowRight, Lock, Mail, User } from "lucide-react";
-import { apiFetch } from "../lib/apiClient";
 
 interface AuthProps {
   onLogin: (token: string, user: any) => void;
@@ -25,11 +24,16 @@ export default function Auth({ onLogin, initialMode = 'login', onNavigateLanding
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
       const payload = mode === 'login' ? { email, password } : { email, password, name };
 
-      const data = await apiFetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
 
       onLogin(data.token, data.user);
     } catch (err: any) {

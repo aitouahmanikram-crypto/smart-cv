@@ -229,16 +229,7 @@ export async function parseCVTextAndGenerateSummary(textContent: string) {
   }
 }
 
-export async function generateCoverLetter(options: { 
-  jobDescription: string; 
-  parsedCvText: string; 
-  companyName: string; 
-  jobTitle: string; 
-  experienceLevel?: string; 
-  skills?: string; 
-  recipientName?: string; 
-}) {
-  const { jobDescription, parsedCvText, companyName, jobTitle, experienceLevel, skills, recipientName } = options;
+export async function generateCoverLetter(jobDescription: string, parsedCvText: string, companyName: string, jobTitle: string, experienceLevel: string, skills: string, recipientName: string) {
   const promptMessage = `
     Write a highly compelling, professional, personalized cover letter for the position: "${jobTitle}" at "${companyName}".
     Recipient Name: "${recipientName || "Hiring Manager"}".
@@ -270,38 +261,6 @@ export async function generateCoverLetter(options: {
     
     // Provide a beautiful, highly realistic fallback Cover Letter paragraph
     return `To: ${recipientName || "Hiring Manager"}\nCompany: ${companyName || "Target Company"}\n\nDear ${recipientName || "Hiring Manager"},\n\nI am writing to express my enthusiastic interest in the ${jobTitle || "Senior Developer"} role. With my background in ${skills || "modern development platforms"} and my extensive capabilities, I am confident in my capability to make an immediate, positive impact on your organization.\n\nThroughout my professional tenure, I have specialized in building robust software solutions, refining user experiences, and collaborating inside elite developer squads to deliver features with premium precision. Your focus on performance and innovative solutions aligns perfectly with my methodology.\n\nThank you for your review and consideration. I welcome the opportunity to discuss further how my credentials and expertise can assist your team.\n\nSincerely,\nCandidate Applications Specialist`;
-  }
-}
-
-export async function rewriteCVContent(options: {
-  originalContent: string;
-  prompt: string;
-  targetJob?: string;
-}) {
-  const { originalContent, prompt, targetJob } = options;
-  const promptMessage = `
-    Rewrite the following resume summary or sections based on this user instruction: "${prompt}".
-    ${targetJob ? `Targeting this job: ${targetJob}` : ""}
-    Original Content: ${originalContent}
-    Return a JSON payload with a single key 'rewrittenText' containing the rewritten text.
-  `;
-
-  try {
-    const response = await callGeminiWithRetry({
-      model: "gemini-3.5-flash",
-      contents: promptMessage,
-      config: {
-        systemInstruction: "You are an expert resume editor. Rewrite content professionally. Output JSON only.",
-        responseMimeType: "application/json",
-      }
-    });
-
-    const payloadText = response.text || "{}";
-    const payload = JSON.parse(payloadText.trim());
-    return payload.rewrittenText || "Failed to rewrite content. Please retry.";
-  } catch (err: any) {
-    console.info(`ℹ️ rewriteCVContent: Falling back to original content due to quota or error.`);
-    return originalContent;
   }
 }
 

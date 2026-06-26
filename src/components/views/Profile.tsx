@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { User, Save, Bell, Shield, Lock } from "lucide-react";
-import { apiFetch } from "../../lib/apiClient";
 
 export default function Profile({ token, user }: { token: string, user: any }) {
   const [form, setForm] = useState({
@@ -20,7 +19,7 @@ export default function Profile({ token, user }: { token: string, user: any }) {
     setError("");
 
     try {
-      await apiFetch("/api/profile/update", {
+      const res = await fetch("/api/profile/update", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,6 +27,11 @@ export default function Profile({ token, user }: { token: string, user: any }) {
         },
         body: JSON.stringify(form)
       });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update profile");
+      }
       
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

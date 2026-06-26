@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { apiFetch } from '../lib/apiClient';
 
 export default function LanguageSwitcher() {
   const { i18n } = useTranslation();
@@ -11,7 +10,7 @@ export default function LanguageSwitcher() {
     
     // Store in database
     try {
-      await apiFetch('/api/settings/language', {
+      await fetch('/api/settings/language', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language: newLang })

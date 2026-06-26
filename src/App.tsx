@@ -3,7 +3,6 @@ import i18n from "./i18n";
 import LandingPage from "./components/LandingPage";
 import Auth from "./components/Auth";
 import Dashboard from "./components/Dashboard";
-import { apiFetch } from "./lib/apiClient";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'login' | 'register' | 'dashboard'>('landing');
@@ -16,10 +15,11 @@ export default function App() {
     
     // Fetch user language preference
     try {
-      const data = await apiFetch('/api/settings/language', {
+      const res = await fetch('/api/settings/language', {
         headers: { "Authorization": `Bearer ${jwt}` }
       });
-      if (data && data.language) {
+      if (res.ok) {
+        const data = await res.json();
         i18n.changeLanguage(data.language);
       }
     } catch (err) {

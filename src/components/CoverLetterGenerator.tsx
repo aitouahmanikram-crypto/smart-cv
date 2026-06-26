@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { PenTool } from "lucide-react";
-import { apiFetch } from "../lib/apiClient";
 
 interface CoverLetterGeneratorProps {
   token: string;
@@ -32,7 +31,7 @@ export default function CoverLetterGenerator({ token, cvs, onGenerated }: CoverL
     setError("");
 
     try {
-      const data = await apiFetch("/api/cover-letters/generate", {
+      const res = await fetch("/api/cover-letters/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -43,6 +42,9 @@ export default function CoverLetterGenerator({ token, cvs, onGenerated }: CoverL
           cvId: form.cvId === "none" ? "" : form.cvId
         })
       });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
 
       onGenerated(data);
       setForm({ ...form, jobTitle: "", companyName: "", recipientName: "", jobDescription: "", experienceLevel: "", skills: "" });

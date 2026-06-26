@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Upload, FileText, CheckCircle, AlertCircle, X, Sparkles } from "lucide-react";
 import { ViewType } from "../Dashboard";
-import { apiFetch } from "../../lib/apiClient";
 
 export default function UploadCV({ token, onNavigate }: { token: string, onNavigate: (view: ViewType) => void }) {
   const [file, setFile] = useState<File | null>(null);
@@ -53,7 +52,7 @@ export default function UploadCV({ token, onNavigate }: { token: string, onNavig
       const formData = new FormData();
       formData.append("cvFile", file);
       
-      await apiFetch("/api/cvs/upload", {
+      const res = await fetch("/api/cvs/upload", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -61,6 +60,12 @@ export default function UploadCV({ token, onNavigate }: { token: string, onNavig
         body: formData
       });
 
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upload and parse CV");
+      }
+      
       setSuccess(true);
       setTimeout(() => {
         onNavigate('analysis');

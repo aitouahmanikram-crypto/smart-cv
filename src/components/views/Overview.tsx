@@ -8,7 +8,6 @@ import {
   CartesianGrid, LineChart, Line, Legend 
 } from "recharts";
 import { ViewType } from "../Dashboard";
-import { apiFetch } from "../../lib/apiClient";
 
 interface OverviewProps {
   token: string;
@@ -31,10 +30,15 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsData, savedData] = await Promise.all([
-          apiFetch("/api/dashboard/stats", { headers: { "Authorization": `Bearer ${token}` } }),
-          apiFetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
+        const [statsRes, savedRes] = await Promise.all([
+          fetch("/api/dashboard/stats", { headers: { "Authorization": `Bearer ${token}` } }),
+          fetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
         ]);
+
+        if (!statsRes.ok || !savedRes.ok) throw new Error("Failed to load dashboard data");
+
+        const statsData = await statsRes.json();
+        const savedData = await savedRes.json();
 
         setStats(statsData);
         setSavedJobs(savedData || []);
@@ -49,12 +53,13 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
 
   const handleRemoveSavedJob = async (matchId: string) => {
     try {
-      await apiFetch(`/api/matches/save/${matchId}`, {
+      const res = await fetch(`/api/matches/save/${matchId}`, {
          method: "DELETE",
          headers: {
            "Authorization": `Bearer ${token}`
          }
       });
+      if (!res.ok) throw new Error("Failed to remove saved job");
       setSavedJobs(prev => prev.filter(job => job.id !== matchId));
     } catch (err: any) {
        console.error("Error removing saved job:", err);
@@ -104,13 +109,19 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
       const formData = new FormData();
       formData.append("cvFile", uploadFile);
       
-      await apiFetch("/api/cvs/upload", {
+      const res = await fetch("/api/cvs/upload", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
         },
         body: formData
       });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upload and parse CV");
+      }
       
       setUploadSuccess(true);
       setTimeout(() => {
