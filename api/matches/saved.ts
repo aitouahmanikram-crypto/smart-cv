@@ -10,7 +10,6 @@ export default async function handler(req: any, res: any) {
     if (!user) return;
 
     const supabase = getSupabase();
-    if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
     
     const { data: savedActivities, error: actErr } = await supabase
       .from('activities')

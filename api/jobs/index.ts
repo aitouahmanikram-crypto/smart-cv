@@ -6,7 +6,6 @@ export default async function handler(req: any, res: any) {
 
   try {
     const supabase = getSupabase();
-    if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
     
     // Auth not required to see jobs
     const { data: jobs, error } = await supabase
