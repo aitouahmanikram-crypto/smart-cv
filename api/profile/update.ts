@@ -2,7 +2,6 @@ import { getSupabase } from '../lib/db';
 import { runCors } from '../lib/cors';
 import { getAuthenticatedUser } from '../lib/middleware';
 import { extendUserWithVirtualFields, serializeUserBio } from '../lib/utils';
-import { sendSuccess, sendError } from '../lib/api-utils';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
@@ -11,18 +10,13 @@ export default async function handler(req: any, res: any) {
     const user = await getAuthenticatedUser(req, res);
     if (!user) return; // Middleware handles 401
     
-    let body;
-    try {
-        body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-    } catch (e) {
-        return sendError(res, "Invalid JSON payload", 400);
-    }
-    const { name, title, bio } = body;
+    const { name, title, bio } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
 
     const supabase = getSupabase();
+    if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
     const { data: rawUser, error: uErr } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle();
     
-    if (uErr || !rawUser) return sendError(res, "User profile not found", 404);
+    if (uErr || !rawUser) return res.status(404).json({ error: "User profile not found" });
 
     const userWithR = extendUserWithVirtualFields(rawUser);
 
@@ -36,8 +30,8 @@ export default async function handler(req: any, res: any) {
     const { error } = await supabase.from('users').update(updatePayload).eq('id', user.id);
     if (error) throw error;
     
-    return sendSuccess(res, { name, title, bio });
+    res.status(200).json({ success: true, user: { name, title, bio } });
   } catch (err: any) {
-    return sendError(res, err);
+    res.status(500).json({ error: err.message });
   }
 }

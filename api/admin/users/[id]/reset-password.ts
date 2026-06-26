@@ -13,7 +13,9 @@ export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
 
     const supabase = getSupabase();
-    const { id } = req.query; // Assuming path param is available in query for /[id]/reset-password.ts
+    if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
+
+    const { id } = req.query; 
     const { password } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
     
     if (!password) return res.status(400).json({ success: false, error: "Password is required" });

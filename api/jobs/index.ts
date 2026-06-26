@@ -1,12 +1,12 @@
 import { getSupabase } from '../lib/db';
 import { runCors } from '../lib/cors';
-import { sendSuccess, sendError } from '../lib/api-utils';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
 
   try {
     const supabase = getSupabase();
+    if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
     
     // Auth not required to see jobs
     const { data: jobs, error } = await supabase
@@ -14,8 +14,8 @@ export default async function handler(req: any, res: any) {
       .select('*');
     
     if (error) throw error;
-    return sendSuccess(res, jobs || []);
+    res.status(200).json(jobs || []);
   } catch (err: any) {
-    return sendError(res, err);
+    res.status(500).json({ error: err.message });
   }
 }

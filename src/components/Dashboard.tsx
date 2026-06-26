@@ -26,7 +26,7 @@ export default function Dashboard({ token, user, onLogout }: DashboardProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { t } = useTranslation();
 
-  const navItems = [
+  const navItems: { id: ViewType; label: string; icon: any }[] = [
     { id: 'overview', label: t('Dashboard'), icon: LayoutDashboard },
     { id: 'upload', label: t('Upload CV'), icon: FileText },
     { id: 'analysis', label: t('Analysis'), icon: Zap },
@@ -35,7 +35,7 @@ export default function Dashboard({ token, user, onLogout }: DashboardProps) {
     { id: 'matching', label: t('Job Matching'), icon: Target },
     { id: 'history', label: 'History & Assets', icon: FolderClock },
     { id: 'profile', label: t('Profile'), icon: User },
-    ...(user?.role === "super_admin" ? [{ id: 'admin' as const, label: t('Admin Panel'), icon: Shield }] : [])
+    ...(user?.role === "super_admin" ? [{ id: 'admin' as ViewType, label: t('Admin Panel'), icon: Shield }] : [])
   ];
 
   const renderView = () => {

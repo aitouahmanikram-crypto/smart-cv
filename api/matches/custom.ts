@@ -15,21 +15,19 @@ export default async function handler(req: any, res: any) {
   try {
     if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
-    const { cvId, jobId } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-    if (!cvId || !jobId) return res.status(400).json({ error: "cvId and jobId are required" });
+    const { cvId, jobTitle, companyName, jobDescription } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    if (!cvId || !jobTitle || !jobDescription) return res.status(400).json({ error: "cvId, jobTitle, and jobDescription are required" });
 
     const { data: cv } = await supabase.from('cvs').select('*').eq('id', cvId).maybeSingle();
-    const { data: job } = await supabase.from('jobs').select('*').eq('id', jobId).maybeSingle();
+    if (!cv) return res.status(404).json({ error: "CV not found" });
 
-    if (!cv || !job) return res.status(404).json({ error: "CV or Job not found" });
-
-    const analysis = await analyzeJobMatch(cv.summary, job.description);
+    const analysis = await analyzeJobMatch(cv.summary, jobDescription);
 
     const matchResult = {
-      id: `match-${Date.now()}`,
+      id: `match-c-${Date.now()}`,
       userId: user.id,
       cvId,
-      jobId,
+      customJob: { title: jobTitle, company: companyName || "Custom" },
       ...analysis,
       createdAt: new Date().toISOString()
     };

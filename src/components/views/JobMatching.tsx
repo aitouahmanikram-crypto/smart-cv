@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Target, Search, Building, MapPin, DollarSign, ExternalLink, Zap, CheckCircle, AlertTriangle, Star } from "lucide-react";
-import { motion, useMotionValue, useTransform, animate } from "motion/react";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { apiFetch } from "../../lib/apiClient";
 
 function AnimatedScore({ score, className }: { score: number, className?: string }) {
   const count = useMotionValue(0);
@@ -28,19 +29,12 @@ export default function JobMatching({ token }: { token: string }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [jobsReq, cvReq, matchesReq, savedReq] = await Promise.all([
-          fetch("/api/jobs", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/cvs", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/matches", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
+        const [jobsData, cvData, matchesData, savedData] = await Promise.all([
+          apiFetch("/api/jobs", { headers: { "Authorization": `Bearer ${token}` } }),
+          apiFetch("/api/cvs", { headers: { "Authorization": `Bearer ${token}` } }),
+          apiFetch("/api/matches", { headers: { "Authorization": `Bearer ${token}` } }),
+          apiFetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
         ]);
-        
-        if (!jobsReq.ok || !cvReq.ok || !matchesReq.ok || !savedReq.ok) throw new Error("Failed to load matching engine data");
-        
-        const jobsData = await jobsReq.json();
-        const cvData = await cvReq.json();
-        const matchesData = await matchesReq.json();
-        const savedData = await savedReq.json();
         
         setJobs(jobsData);
         setCvs(cvData);
@@ -69,13 +63,12 @@ export default function JobMatching({ token }: { token: string }) {
   const toggleBookmark = async (matchId: string) => {
     const isCurrentlySaved = savedMatchIds[matchId];
     try {
-      const res = await fetch(`/api/matches/save/${matchId}`, {
+      await apiFetch(`/api/matches/save/${matchId}`, {
         method: isCurrentlySaved ? "DELETE" : "POST",
         headers: {
           "Authorization": `Bearer ${token}`
         }
       });
-      if (!res.ok) throw new Error("Failed to update bookmark status");
       setSavedMatchIds(prev => ({
         ...prev,
         [matchId]: !isCurrentlySaved
@@ -95,7 +88,7 @@ export default function JobMatching({ token }: { token: string }) {
     setError("");
 
     try {
-      const res = await fetch("/api/matches/analyze", {
+      const data = await apiFetch("/api/matches/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,9 +96,6 @@ export default function JobMatching({ token }: { token: string }) {
         },
         body: JSON.stringify({ cvId: selectedCv, jobId })
       });
-      const data = await res.json();
-      
-      if (!res.ok) throw new Error(data.error || "Match analysis failed");
       
       setMatches([data, ...matches.filter(m => !(m.cvId === selectedCv && m.jobId === jobId))]);
     } catch (err: any) {
@@ -138,7 +128,7 @@ export default function JobMatching({ token }: { token: string }) {
     setError("");
 
     try {
-      const res = await fetch("/api/matches/custom", {
+      const data = await apiFetch("/api/matches/custom", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -149,9 +139,6 @@ export default function JobMatching({ token }: { token: string }) {
           ...customForm
         })
       });
-      const data = await res.json();
-      
-      if (!res.ok) throw new Error(data.error || "Match analysis failed");
       
       setMatches([data, ...matches]);
       setJobs([data.customJob, ...jobs]);

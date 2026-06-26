@@ -1,38 +1,56 @@
 import { verifyToken } from './auth';
 import { getSupabase } from './db';
-import { sendError } from './api-utils';
+import { extendUserWithVirtualFields } from './utils';
 
-// Simplified for brevity, you should implement full logic from server.ts
 export async function getAuthenticatedUser(req: any, res: any) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    sendError(res, "Missing or invalid authorization token", 401);
+  const supabase = getSupabase();
+  if (!supabase) {
+    res.status(500).json({ error: "Supabase environment variables are missing." });
     return null;
   }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Missing or invalid authorization token" });
+    return null;
+  }
+
   const token = authHeader.split(" ")[1];
   const decoded = verifyToken(token);
   if (!decoded) {
-    sendError(res, "Session expired or invalid token", 401);
+    res.status(401).json({ error: "Session expired or invalid token" });
     return null;
   }
   
-  const supabase = getSupabase();
-  const { data: rawUser } = await supabase.from('users').select('*').eq('id', decoded.userId).maybeSingle();
-  if (!rawUser) {
-    sendError(res, "User session is invalid", 401);
+  try {
+    const { data: rawUser, error } = await supabase.from('users').select('*').eq('id', decoded.userId).maybeSingle();
+    if (error || !rawUser) {
+      res.status(401).json({ error: "User session is invalid" });
+      return null;
+    }
+    
+    const user = extendUserWithVirtualFields(rawUser);
+    if (user.status === 'suspended') {
+      res.status(403).json({ error: "Your account has been suspended." });
+      return null;
+    }
+
+    return user;
+  } catch (err) {
+    res.status(500).json({ error: "Authentication system failure" });
     return null;
   }
-  
-  return rawUser; // Minimal version
 }
 
 export async function getAuthenticatedAdmin(req: any, res: any) {
   const user = await getAuthenticatedUser(req, res);
   if (!user) return null;
 
-  if (user.role !== 'super_admin') {
-    sendError(res, "Unauthorized. Super Admin access only.", 403);
-    return null;
+  // Admin check: email or virtual role
+  if (user.email === "admin@smartcvai.com" || user.role === 'super_admin') {
+    return user;
   }
-  return user;
+
+  res.status(403).json({ error: "Unauthorized. Super Admin access only." });
+  return null;
 }

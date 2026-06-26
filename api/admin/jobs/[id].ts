@@ -10,7 +10,9 @@ export default async function handler(req: any, res: any) {
     if (!admin) return;
 
     const supabase = getSupabase();
-    const { id } = req.query; // Assuming Vercel provides req.query[param]
+    if (!supabase) return res.status(500).json({ error: "Supabase environment variables are missing" });
+
+    const { id } = req.query; 
 
     if (req.method === 'PUT') {
       const { title, company, location, category, type, description, requirements, salary } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};

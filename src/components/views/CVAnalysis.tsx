@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 import CVPreview from "../CVPreview";
 import CareerAdvisor from "./CareerAdvisor";
 import VersionTimeline from "./VersionTimeline";
+import { apiFetch } from "../../lib/apiClient";
 
 export default function CVAnalysis({ token }: { token: string }) {
   const [cvs, setCvs] = useState<any[]>([]);
@@ -40,21 +41,19 @@ export default function CVAnalysis({ token }: { token: string }) {
 
   const fetchVersions = async (cvId: string) => {
     try {
-        const res = await fetch(`/api/cvs/${cvId}/versions`, {
+        const data = await apiFetch(`/api/cvs/${cvId}/versions`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
-        const data = await res.json();
         setVersions(Array.isArray(data) ? data : []);
     } catch(err) { console.error("Failed to fetch versions:", err); setVersions([]); }
   };
 
   const handleRestore = async (versionId: string) => {
       try {
-          const res = await fetch(`/api/cvs/${selectedCv.id}/versions/${versionId}/restore`, {
+          await apiFetch(`/api/cvs/${selectedCv.id}/versions/${versionId}/restore`, {
               method: 'POST',
               headers: { "Authorization": `Bearer ${token}` }
           });
-          if (!res.ok) throw new Error("Restore failed");
           window.location.reload(); 
       } catch(err) { console.error(err); }
   };
@@ -163,13 +162,11 @@ export default function CVAnalysis({ token }: { token: string }) {
   useEffect(() => {
     const fetchCVs = async () => {
       try {
-        const res = await fetch("/api/cvs", {
+        const data = await apiFetch("/api/cvs", {
           headers: {
             "Authorization": `Bearer ${token}`
           }
         });
-        if (!res.ok) throw new Error("Failed to load analyzed CVs");
-        const data = await res.json();
         setCvs(data);
         if (data.length > 0) {
           setSelectedCv(data[0]);

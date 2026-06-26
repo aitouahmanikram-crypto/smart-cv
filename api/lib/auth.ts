@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_default_secret_for_dev_only";
 
 export function generateToken(userId: string, tenantId: string): string {
   return jwt.sign({ userId, tenantId }, JWT_SECRET, { expiresIn: '24h' });

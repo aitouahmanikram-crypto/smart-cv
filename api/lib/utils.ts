@@ -1,3 +1,24 @@
+import { getSupabase } from './db';
+
+// Multi-tenant activity logger
+export async function logActivity(userId: string, tenantId: string, type: 'upload' | 'analysis' | 'letter' | 'match' | 'chat' | 'auth' | 'admin', message: string) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  
+  try {
+    await supabase.from('activities').insert([{
+      id: `activity-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      userId,
+      tenantId,
+      type,
+      message,
+      timestamp: new Date().toISOString()
+    }]);
+  } catch (err) {
+    console.error("❌ Failed to log activity to Supabase:", err);
+  }
+}
+
 export function serializeUserBio(role: string, status: string, realBio: string) {
   return "__VIRTUAL_USER_DATA__:" + JSON.stringify({
     role,

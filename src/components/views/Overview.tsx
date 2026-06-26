@@ -8,6 +8,7 @@ import {
   CartesianGrid, LineChart, Line, Legend 
 } from "recharts";
 import { ViewType } from "../Dashboard";
+import { apiFetch } from "../../lib/apiClient";
 
 interface OverviewProps {
   token: string;
@@ -30,21 +31,13 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsRes, savedRes] = await Promise.all([
-          fetch("/api/dashboard/stats", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
+        const [statsData, savedData] = await Promise.all([
+          apiFetch("/api/dashboard/stats", { headers: { "Authorization": `Bearer ${token}` } }),
+          apiFetch("/api/matches/saved", { headers: { "Authorization": `Bearer ${token}` } })
         ]);
 
-        if (!statsRes.ok || !savedRes.ok) throw new Error("Failed to load dashboard data");
-
-        const statsData = await statsRes.json();
-        const savedData = await savedRes.json();
-        
-        if (!statsData.success) throw new Error(statsData.error || "Failed to load dashboard data");
-        if (!savedData.success) throw new Error(savedData.error || "Failed to load saved jobs");
-
-        setStats(statsData.data);
-        setSavedJobs(savedData.data || []);
+        setStats(statsData);
+        setSavedJobs(savedData || []);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -56,13 +49,12 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
 
   const handleRemoveSavedJob = async (matchId: string) => {
     try {
-      const res = await fetch(`/api/matches/save/${matchId}`, {
+      await apiFetch(`/api/matches/save/${matchId}`, {
          method: "DELETE",
          headers: {
            "Authorization": `Bearer ${token}`
          }
       });
-      if (!res.ok) throw new Error("Failed to remove saved job");
       setSavedJobs(prev => prev.filter(job => job.id !== matchId));
     } catch (err: any) {
        console.error("Error removing saved job:", err);
@@ -112,19 +104,13 @@ export default function Overview({ token, onNavigate }: OverviewProps) {
       const formData = new FormData();
       formData.append("cvFile", uploadFile);
       
-      const res = await fetch("/api/cvs/upload", {
+      await apiFetch("/api/cvs/upload", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
         },
         body: formData
       });
-
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to upload and parse CV");
-      }
       
       setUploadSuccess(true);
       setTimeout(() => {

@@ -1,6 +1,6 @@
 import React from "react";
 import { Sparkles, FileText, CheckCircle, ArrowRight, Target, Bot, Zap, Star, ShieldCheck, ChevronRight, Upload, Search, Download } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 
 interface LandingPageProps {
   onNavigate: (view: 'login' | 'register') => void;
@@ -8,7 +8,7 @@ interface LandingPageProps {
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as any } }
 };
 
 const staggerContainer = {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FolderClock, FileText, Zap, ChevronRight, Activity, Trash2, ArrowRight, Download } from "lucide-react";
 import jsPDF from "jspdf";
+import { apiFetch } from "../../lib/apiClient";
 
 export default function History({ token }: { token: string }) {
   const [history, setHistory] = useState<any>({ analyses: [], coverLetters: [], matches: [], interviewQuestions: [] });
@@ -13,12 +14,10 @@ export default function History({ token }: { token: string }) {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch("/api/history", {
+      const data = await apiFetch("/api/history", {
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (res.ok) {
-        setHistory(await res.json());
-      }
+      setHistory(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -29,7 +28,7 @@ export default function History({ token }: { token: string }) {
   const deleteItem = async (type: string, id: string) => {
     if(!confirm("Delete this record permanently?")) return;
     try {
-      await fetch(`/api/history/${type}/${id}`, {
+      await apiFetch(`/api/history/${type}/${id}`, {
         method: 'DELETE',
         headers: { "Authorization": `Bearer ${token}` }
       });

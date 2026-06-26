@@ -1,7 +1,7 @@
 import { runCors } from '../lib/cors';
 import { getAuthenticatedUser } from '../lib/middleware';
 import { getSupabase } from '../lib/db';
-import { analyzeJobMatch } from '../../src/services/aiService';
+import { generateCoverLetter } from '../../src/services/aiService';
 
 export default async function handler(req: any, res: any) {
   if (!runCors(req, res)) return;
@@ -15,29 +15,31 @@ export default async function handler(req: any, res: any) {
   try {
     if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
-    const { cvId, jobId } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-    if (!cvId || !jobId) return res.status(400).json({ error: "cvId and jobId are required" });
+    const { cvId, jobTitle, companyName, jobDescription } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    if (!cvId || !jobTitle) return res.status(400).json({ error: "cvId and jobTitle are required" });
 
     const { data: cv } = await supabase.from('cvs').select('*').eq('id', cvId).maybeSingle();
-    const { data: job } = await supabase.from('jobs').select('*').eq('id', jobId).maybeSingle();
-
-    if (!cv || !job) return res.status(404).json({ error: "CV or Job not found" });
-
-    const analysis = await analyzeJobMatch(cv.summary, job.description);
-
-    const matchResult = {
-      id: `match-${Date.now()}`,
+    const content = await generateCoverLetter({
+      parsedCvText: cv?.summary || "", 
+      jobTitle, 
+      companyName, 
+      jobDescription
+    });
+    
+    const newLetter = {
+      id: `cl-${Date.now()}`,
       userId: user.id,
       cvId,
-      jobId,
-      ...analysis,
+      jobTitle,
+      companyName: companyName || "Prospective Employer",
+      content,
       createdAt: new Date().toISOString()
     };
 
-    const { error } = await supabase.from('matches').insert([matchResult]);
+    const { error } = await supabase.from('cover_letters').insert([newLetter]);
     if (error) throw error;
 
-    res.status(200).json(matchResult);
+    return res.status(200).json(newLetter);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
