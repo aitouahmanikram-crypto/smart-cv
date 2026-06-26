@@ -1,9 +1,16 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { getSupabase } from '../server/lib/db';
 import { analyzeJobMatch } from '../src/services/aiService';
 
 export default async function handler(req: any, res: any) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).json({ success: true });
+  }
+
   if (!runCors(req, res)) return;
 
   const { action } = req.query;
@@ -16,13 +23,14 @@ export default async function handler(req: any, res: any) {
     if (!supabase) return res.status(500).json({ success: false, error: "Supabase environment variables are missing" });
 
     if (action === 'list') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/matches', action, allowedMethods: ['GET'] });
       const { data, error } = await supabase.from('matches').select('*').eq('userId', user.id);
       if (error) throw error;
       return res.status(200).json({ success: true, data: data || [] });
     }
 
     if (action === 'analyze') {
-      if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/matches', action, allowedMethods: ['POST'] });
       const { cvId, jobId } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       if (!cvId || !jobId) return res.status(400).json({ success: false, error: "cvId and jobId are required" });
 
@@ -38,7 +46,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'custom') {
-      if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/matches', action, allowedMethods: ['POST'] });
       const { cvId, jobTitle, companyName, jobDescription } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       if (!cvId || !jobTitle || !jobDescription) return res.status(400).json({ success: false, error: "cvId, jobTitle, and jobDescription are required" });
 
@@ -53,6 +61,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'saved') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/matches', action, allowedMethods: ['GET'] });
       const { data: savedActivities, error: actErr } = await supabase.from('activities').select('*').eq('userId', user.id).eq('type', 'saved_job');
       if (actErr) throw actErr;
       if (!savedActivities || savedActivities.length === 0) return res.status(200).json({ success: true, data: [] });
@@ -75,6 +84,7 @@ export default async function handler(req: any, res: any) {
         if (error) throw error;
         return res.status(200).json({ success: true });
       }
+      return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/matches', action, allowedMethods: ['POST', 'DELETE'] });
     }
 
     return res.status(400).json({ success: false, error: "Invalid action" });

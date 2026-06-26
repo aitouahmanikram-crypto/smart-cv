@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Sparkles, Target, DollarSign, TrendingUp, BookOpen, CheckCircle } from "lucide-react";
+import { apiFetch } from "../../lib/apiClient";
 
 export default function CareerAdvisor({ cvId, token }: { cvId: string; token: string }) {
   const [advice, setAdvice] = useState<any>(null);
@@ -9,11 +10,9 @@ export default function CareerAdvisor({ cvId, token }: { cvId: string; token: st
   useEffect(() => {
     async function fetchAdvice() {
       try {
-        const res = await fetch(`/api/career-advice/${cvId}`, {
+        const data = await apiFetch(`/api/career-advice/${cvId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
-        if (!res.ok) throw new Error("Failed to fetch advice");
-        const data = await res.json();
         setAdvice(data);
       } catch (err: any) {
         setError(err.message);

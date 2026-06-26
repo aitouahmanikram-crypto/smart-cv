@@ -1,11 +1,18 @@
 import bcrypt from 'bcryptjs';
-import { getSupabase } from './lib/db';
-import { generateToken } from './lib/auth';
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { extendUserWithVirtualFields, serializeUserBio } from './lib/utils';
+import { getSupabase } from '../server/lib/db';
+import { generateToken } from '../server/lib/auth';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { extendUserWithVirtualFields, serializeUserBio } from '../server/lib/utils';
 
 export default async function handler(req: any, res: any) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).json({ success: true });
+  }
+
   if (!runCors(req, res)) return;
 
   const { action } = req.query;
@@ -16,7 +23,7 @@ export default async function handler(req: any, res: any) {
 
     // Public actions
     if (action === 'login') {
-      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/auth', action, allowedMethods: ['POST'] });
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       const { email, password } = body;
       if (!email || !password) return res.status(400).json({ success: false, error: "Email and password are required" });
@@ -31,7 +38,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'register') {
-      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/auth', action, allowedMethods: ['POST'] });
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       const { email, password, name } = body;
       if (!email || !password || !name) return res.status(400).json({ success: false, error: "Name, email, and password are required fields" });
@@ -66,6 +73,7 @@ export default async function handler(req: any, res: any) {
     if (!user) return; // Middleware handles 401
 
     if (action === 'me') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/auth', action, allowedMethods: ['GET'] });
       const { data: fullUser, error } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle();
       if (error || !fullUser) return res.status(404).json({ success: false, error: "User profile not found" });
 
@@ -74,6 +82,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'logout') {
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/auth', action, allowedMethods: ['POST'] });
       return res.status(200).json({ success: true });
     }
 

@@ -1,7 +1,7 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
-import { logActivity } from './lib/utils';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { getSupabase } from '../server/lib/db';
+import { logActivity } from '../server/lib/utils';
 import { parseCVTextAndGenerateSummary, rewriteCVContent } from '../src/services/aiService';
 import multer from 'multer';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
@@ -28,6 +28,13 @@ export const config = {
 };
 
 export default async function handler(req: any, res: any) {
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        return res.status(200).json({ success: true });
+    }
+
     if (!runCors(req, res)) return;
 
     const { action } = req.query;
@@ -40,13 +47,14 @@ export default async function handler(req: any, res: any) {
         if (!supabase) return res.status(500).json({ success: false, error: "Supabase environment variables are missing" });
 
         if (action === 'list') {
+            if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cvs', action, allowedMethods: ['GET'] });
             const { data: cvs, error } = await supabase.from('cvs').select('*').eq('userId', user.id).order('updatedAt', { ascending: false });
             if (error) throw error;
             return res.status(200).json({ success: true, data: cvs || [] });
         }
 
         if (action === 'upload') {
-            if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+            if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cvs', action, allowedMethods: ['POST'] });
             await runMiddleware(req, res, upload.single('cvFile'));
             const file = req.file;
             if (!file) return res.status(400).json({ success: false, error: "No file uploaded" });
@@ -91,7 +99,7 @@ export default async function handler(req: any, res: any) {
         }
 
         if (action === 'rewrite') {
-            if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+            if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cvs', action, allowedMethods: ['POST'] });
             
             // Manual parse because bodyParser is false
             let body: any = {};
@@ -117,6 +125,7 @@ export default async function handler(req: any, res: any) {
         }
 
         if (action === 'versions') {
+            if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cvs', action, allowedMethods: ['GET'] });
             const { cvId } = req.query;
             if (!cvId) return res.status(400).json({ success: false, error: "cvId is required" });
             const { data, error } = await supabase.from('cv_versions').select('*').eq('cvId', cvId).order('versionNumber', { ascending: false });
@@ -125,7 +134,7 @@ export default async function handler(req: any, res: any) {
         }
 
         if (action === 'restore') {
-            if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+            if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cvs', action, allowedMethods: ['POST'] });
             const { cvId, versionId } = req.query;
             if (!cvId || !versionId) return res.status(400).json({ success: false, error: "cvId and versionId are required" });
             return res.status(200).json({ success: true, message: "Version restored" });

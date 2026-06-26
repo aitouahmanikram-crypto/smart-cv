@@ -1,9 +1,16 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { getSupabase } from '../server/lib/db';
 import { generateCareerAdvice } from '../src/services/aiService';
 
 export default async function handler(req: any, res: any) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).json({ success: true });
+  }
+
   if (!runCors(req, res)) return;
 
   const { action, cvId: cvIdQuery } = req.query;
@@ -16,13 +23,14 @@ export default async function handler(req: any, res: any) {
     if (!supabase) return res.status(500).json({ success: false, error: "Supabase environment variables are missing" });
 
     if (action === 'list') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/career-advice', action, allowedMethods: ['GET'] });
       const { data, error } = await supabase.from('career_advice').select('*').eq('userId', user.id).order('createdAt', { ascending: false });
       if (error) throw error;
       return res.status(200).json({ success: true, data: data || [] });
     }
 
     if (action === 'generate') {
-      if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/career-advice', action, allowedMethods: ['POST'] });
       const { cvId } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       if (!cvId) return res.status(400).json({ success: false, error: "cvId is required" });
       const { data: cv, error: cvErr } = await supabase.from('cvs').select('*').eq('id', cvId).maybeSingle();
@@ -35,6 +43,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'get') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/career-advice', action, allowedMethods: ['GET'] });
       const cvId = cvIdQuery;
       if (!cvId) return res.status(400).json({ success: false, error: "cvId is required" });
       const { data, error } = await supabase.from('career_advice').select('*').eq('cvId', cvId).maybeSingle();

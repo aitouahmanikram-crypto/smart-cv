@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis, 
   Tooltip, CartesianGrid, Legend, Cell, PieChart, Pie
 } from "recharts";
+import { apiFetch } from "../../lib/apiClient";
 
 interface AdminPanelProps {
   token: string;
@@ -64,18 +65,13 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     setSeedingSuccess("");
     setSeedingError("");
     try {
-      const res = await fetch("/api/admin/seed-demo", {
+      const data = await apiFetch("/api/admin/seed-demo", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
         }
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Seeding failed.");
-      }
-      const data = await res.json();
       setSeedingSuccess(data.message || "Seeding completed successfully.");
       fetchAllAdminData();
     } catch (err: any) {
@@ -89,25 +85,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     setLoading(true);
     setError("");
     try {
-      const [statsRes, usersRes, jobsRes, settingsRes] = await Promise.all([
-        fetch("/api/admin/stats", { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch("/api/admin/users", { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch("/api/admin/jobs", { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch("/api/admin/settings", { headers: { "Authorization": `Bearer ${token}` } })
+      const [statsData, usersData, jobsData, settingsData] = await Promise.all([
+        apiFetch("/api/admin/stats", { headers: { "Authorization": `Bearer ${token}` } }),
+        apiFetch("/api/admin/users", { headers: { "Authorization": `Bearer ${token}` } }),
+        apiFetch("/api/admin/jobs", { headers: { "Authorization": `Bearer ${token}` } }),
+        apiFetch("/api/admin/settings", { headers: { "Authorization": `Bearer ${token}` } })
       ]);
-
-      if (statsRes.status === 403 || usersRes.status === 403) {
-        throw new Error("Access Denied. You are not authorized as a Super Admin.");
-      }
-
-      if (!statsRes.ok || !usersRes.ok || !jobsRes.ok || !settingsRes.ok) {
-        throw new Error("Failed to load administration dataset.");
-      }
-
-      const statsData = await statsRes.json();
-      const usersData = await usersRes.json();
-      const jobsData = await jobsRes.json();
-      const settingsData = await settingsRes.json();
 
       setStats(statsData);
       setUsers(usersData);
@@ -129,7 +112,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     e.preventDefault();
     setSettingsSuccess("");
     try {
-      const res = await fetch("/api/admin/settings", {
+      const data = await apiFetch("/api/admin/settings", {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -137,8 +120,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         },
         body: JSON.stringify(sysSettings)
       });
-      if (!res.ok) throw new Error("Could not update app settings");
-      const data = await res.json();
       setSysSettings(data);
       setSettingsSuccess("System settings successfully updated.");
       setTimeout(() => setSettingsSuccess(""), 3000);
@@ -151,7 +132,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const handleToggleSuspendUser = async (user: any) => {
     const newStatus = user.status === "suspended" ? "active" : "suspended";
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      await apiFetch(`/api/admin/users/${user.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -159,7 +140,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         },
         body: JSON.stringify({ status: newStatus })
       });
-      if (!res.ok) throw new Error(`Failed to change suspension of user ${user.name}`);
       
       // Update local state list
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
@@ -172,14 +152,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const handleDeleteUser = async (userId: string) => {
     if (!confirm("Are you absolutely sure you want to delete this user? This action is irreversible.")) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      await apiFetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to delete user.");
-      }
       setUsers(prev => prev.filter(u => u.id !== userId));
     } catch (err: any) {
       alert(err.message);
@@ -190,7 +166,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const handleToggleUserRole = async (user: any) => {
     const nextRole = user.role === "super_admin" ? "user" : "super_admin";
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      await apiFetch(`/api/admin/users/${user.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -198,7 +174,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         },
         body: JSON.stringify({ role: nextRole })
       });
-      if (!res.ok) throw new Error("Could not modify user authority.");
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: nextRole } : u));
     } catch (err: any) {
       alert(err.message);
@@ -210,7 +185,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     e.preventDefault();
     if (!editingUser) return;
     try {
-      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
+      await apiFetch(`/api/admin/users/${editingUser.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -224,7 +199,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           status: editingUser.status
         })
       });
-      if (!res.ok) throw new Error("Failed to save changes.");
       
       setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...editingUser } : u));
       setEditingUser(null);
@@ -238,7 +212,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     e.preventDefault();
     if (!resettingUserPassword || !newPassword) return;
     try {
-      const res = await fetch(`/api/admin/users/${resettingUserPassword.id}/reset-password`, {
+      await apiFetch(`/api/admin/users/${resettingUserPassword.id}/reset-password`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -246,7 +220,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         },
         body: JSON.stringify({ password: newPassword })
       });
-      if (!res.ok) throw new Error("Failed to reset password.");
       alert(`Password successfully changed for ${resettingUserPassword.name}`);
       setResettingUserPassword(null);
       setNewPassword("");
@@ -259,7 +232,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/admin/jobs", {
+      const returnedJob = await apiFetch("/api/admin/jobs", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -270,8 +243,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           requirements: jobForm.requirements.split(",").map(s => s.trim()).filter(s => s)
         })
       });
-      if (!res.ok) throw new Error("Failed to create job offer.");
-      const returnedJob = await res.json();
       setJobs(prev => [returnedJob, ...prev]);
       setIsCreatingJob(false);
       setJobForm({
@@ -298,7 +269,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         ? editingJob.requirements.split(",").map((s: string) => s.trim()).filter((s: string) => s)
         : editingJob.requirements;
 
-      const res = await fetch(`/api/admin/jobs/${editingJob.id}`, {
+      await apiFetch(`/api/admin/jobs/${editingJob.id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -309,7 +280,6 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           requirements: parsedReqs
         })
       });
-      if (!res.ok) throw new Error("Failed to update job offer.");
       
       setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...editingJob, requirements: parsedReqs } : j));
       setEditingJob(null);
@@ -322,11 +292,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const handleDeleteJob = async (jobId: string) => {
     if (!confirm("Are you sure you want to delete this job offer?")) return;
     try {
-      const res = await fetch(`/api/admin/jobs/${jobId}`, {
+      await apiFetch(`/api/admin/jobs/${jobId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error("Failed to delete job.");
       setJobs(prev => prev.filter(j => j.id !== jobId));
     } catch (err: any) {
       alert(err.message);

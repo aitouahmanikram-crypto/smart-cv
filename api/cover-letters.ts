@@ -1,9 +1,16 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { getSupabase } from '../server/lib/db';
 import { generateCoverLetter } from '../src/services/aiService';
 
 export default async function handler(req: any, res: any) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).json({ success: true });
+  }
+
   if (!runCors(req, res)) return;
 
   const { action } = req.query;
@@ -16,13 +23,14 @@ export default async function handler(req: any, res: any) {
     if (!supabase) return res.status(500).json({ success: false, error: "Supabase environment variables are missing" });
 
     if (action === 'list') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cover-letters', action, allowedMethods: ['GET'] });
       const { data, error } = await supabase.from('cover_letters').select('*').eq('userId', user.id).order('createdAt', { ascending: false });
       if (error) throw error;
       return res.status(200).json({ success: true, data: data || [] });
     }
 
     if (action === 'generate') {
-      if (req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+      if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/cover-letters', action, allowedMethods: ['POST'] });
       const { cvId, jobTitle, companyName, jobDescription } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
       if (!cvId || !jobTitle) return res.status(400).json({ success: false, error: "cvId and jobTitle are required" });
       const { data: cv } = await supabase.from('cvs').select('*').eq('id', cvId).maybeSingle();

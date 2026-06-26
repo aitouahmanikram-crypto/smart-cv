@@ -1,8 +1,15 @@
-import { runCors } from './lib/cors';
-import { getAuthenticatedUser } from './lib/middleware';
-import { getSupabase } from './lib/db';
+import { runCors } from '../server/lib/cors';
+import { getAuthenticatedUser } from '../server/lib/middleware';
+import { getSupabase } from '../server/lib/db';
 
 export default async function handler(req: any, res: any) {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).json({ success: true });
+  }
+
   if (!runCors(req, res)) return;
 
   const { action, type, id } = req.query;
@@ -15,6 +22,7 @@ export default async function handler(req: any, res: any) {
     if (!supabase) return res.status(500).json({ success: false, error: "Supabase environment variables are missing" });
 
     if (action === 'list') {
+      if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/history', action, allowedMethods: ['GET'] });
       const [{ data: cvs }, { data: letters }, { data: matches }] = await Promise.all([
         supabase.from('cvs').select('*').eq('userId', user.id).order('updatedAt', { ascending: false }),
         supabase.from('cover_letters').select('*').eq('userId', user.id).order('createdAt', { ascending: false }),
@@ -24,7 +32,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (action === 'delete') {
-      if (req.method !== 'DELETE' && req.method !== 'POST') return res.status(405).json({ success: false, error: "Method not allowed" });
+      if (req.method !== 'DELETE' && req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed', method: req.method, route: '/api/history', action, allowedMethods: ['DELETE', 'POST'] });
       const typeStr = String(type);
       const table = (typeStr === 'cvs' || typeStr === 'analysis') ? 'cvs' : 
                     (typeStr === 'letters' || typeStr === 'coverLetter') ? 'cover_letters' : 

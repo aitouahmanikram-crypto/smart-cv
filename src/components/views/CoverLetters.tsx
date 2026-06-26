@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { PenTool, Download, FileText, CheckCircle, Copy, RefreshCcw } from "lucide-react";
 import jsPDF from "jspdf";
 import CoverLetterGenerator from "../CoverLetterGenerator";
+import { apiFetch } from "../../lib/apiClient";
 
 export default function CoverLetters({ token }: { token: string }) {
   const [cvs, setCvs] = useState<any[]>([]);
@@ -24,15 +25,10 @@ export default function CoverLetters({ token }: { token: string }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [cvReq, lettersReq] = await Promise.all([
-          fetch("/api/cvs", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/cover-letters", { headers: { "Authorization": `Bearer ${token}` } })
+        const [cvData, lettersData] = await Promise.all([
+          apiFetch("/api/cvs", { headers: { "Authorization": `Bearer ${token}` } }),
+          apiFetch("/api/cover-letters", { headers: { "Authorization": `Bearer ${token}` } })
         ]);
-        
-        if (!cvReq.ok || !lettersReq.ok) throw new Error("Failed to load requisite data");
-        
-        const cvData = await cvReq.json();
-        const lettersData = await lettersReq.json();
         
         setCvs(cvData);
         setLetters(lettersData.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
@@ -62,7 +58,7 @@ export default function CoverLetters({ token }: { token: string }) {
     setError("");
 
     try {
-      const res = await fetch("/api/cover-letters/generate", {
+      const data = await apiFetch("/api/cover-letters/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -73,8 +69,6 @@ export default function CoverLetters({ token }: { token: string }) {
           cvId: targetData.cvId === "none" ? "" : targetData.cvId
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
       
       setLetters(prev => [data, ...prev]);
       if (!letterToRegenerate) {
